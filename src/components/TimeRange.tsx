@@ -24,12 +24,12 @@ export function useWindow(key: RangeKey, tick = 0): MetricsWindow {
 
 export function TimeRangePicker({ value, onChange }: { value: RangeKey; onChange: (k: RangeKey) => void }) {
   return (
-    <div className="inline-flex rounded-lg border border-line bg-surface p-0.5">
+    <div className="inline-flex rounded-xl border border-line/80 bg-surface/60 backdrop-blur p-1">
       {RANGES.map((r) => (
         <button
           key={r.key}
           onClick={() => onChange(r.key)}
-          className={clsx("px-2.5 py-1 text-xs rounded-md transition-colors", value === r.key ? "bg-brand text-brandink font-medium" : "text-ink2 hover:bg-raised")}
+          className={clsx("px-3 py-1.5 text-xs rounded-lg transition-all", value === r.key ? "gradient-brand text-white font-semibold shadow-glow" : "text-ink2 hover:bg-raised hover:text-ink")}
         >
           {r.label}
         </button>

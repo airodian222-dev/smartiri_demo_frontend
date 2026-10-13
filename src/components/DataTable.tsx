@@ -73,7 +73,7 @@ export function DataTable<R>({
   const visible = filtered.slice(p * pageSize, (p + 1) * pageSize);
 
   return (
-    <div className="card overflow-hidden">
+    <div className="card overflow-hidden animate-rise">
       {(searchable || toolbar) && (
         <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 border-b border-line">
           {searchable && (
@@ -107,7 +107,7 @@ export function DataTable<R>({
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-raised/60">
+            <thead className="bg-raised/40">
               <tr>
                 {columns.map((c) => (
                   <th
@@ -125,7 +125,7 @@ export function DataTable<R>({
               {visible.map((r) => (
                 <tr
                   key={rowKey(r)}
-                  className={clsx(rowLink && "cursor-pointer hover:bg-raised/70")}
+                  className={clsx("transition-colors", rowLink && "cursor-pointer hover:bg-brand/5")}
                   onClick={(e) => {
                     if (!rowLink) return;
                     if ((e.target as HTMLElement).closest("a,button,input,select")) return;

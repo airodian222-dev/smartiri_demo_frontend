@@ -1,6 +1,6 @@
 # SmartIRI IoT Console
 
-A modern IoT dashboard for **ChirpStack v4**. It shows all device and network data, and it covers the ChirpStack web-UI features, from tenants down to individual LoRaWAN frames.
+A modern, dark-first IoT command center for **ChirpStack v4**. It has its own design rather than ChirpStack's UI: glass cards, gradient accents, a network-health hero, live sensor tiles with sparklines, and a device fleet card grid. It shows all device and network data, and it covers the ChirpStack web-UI features, from tenants down to individual LoRaWAN frames.
 
 It runs in two modes:
 

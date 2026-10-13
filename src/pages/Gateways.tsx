@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { List, Map, Plus, RadioTower } from "lucide-react";
+import { List, Map, Plus, RadioTower, Wifi, WifiOff } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import * as api from "@/api/chirpstack";
 import type { Gateway } from "@/api/types";
+import { KpiCard } from "@/components/charts";
 import { DataTable } from "@/components/DataTable";
 import { GatewayForm } from "@/components/GatewayForm";
 import { gatewayPoints, PointsMap } from "@/components/GatewayMap";
@@ -18,6 +19,7 @@ export default function Gateways() {
   const { colors } = useTheme();
   const [view, setView] = useState<"list" | "map">("list");
   const q = useQuery({ queryKey: ["gateways", tenantId], queryFn: () => api.gateways.list(tenantId!, { limit: 500 }), enabled: !!tenantId });
+  const list = q.data?.result ?? [];
   return (
     <div>
       <PageHeader
@@ -34,6 +36,11 @@ export default function Gateways() {
           </>
         }
       />
+      <div className="grid sm:grid-cols-3 gap-4 mb-5">
+        <KpiCard label="Online" value={list.filter((g) => g.state === "ONLINE").length} unit={`/ ${list.length}`} icon={<Wifi />} tone="green" progress={list.length ? list.filter((g) => g.state === "ONLINE").length / list.length : 0} />
+        <KpiCard label="Offline" value={list.filter((g) => g.state === "OFFLINE").length} icon={<WifiOff />} tone="pink" sub="No stats within 2× interval" />
+        <KpiCard label="Never seen" value={list.filter((g) => !g.state || g.state === "NEVER_SEEN").length} icon={<RadioTower />} tone="violet" sub="Provisioned, not yet connected" />
+      </div>
       {view === "map" ? (
         <Card bodyClass="p-2">
           <PointsMap points={gatewayPoints(q.data?.result ?? [], colors)} height="70vh" />

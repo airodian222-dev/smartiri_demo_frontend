@@ -6,7 +6,7 @@ interface ThemeCtx {
   pref: ThemePref;
   setPref: (p: ThemePref) => void;
   dark: boolean;
-  colors: { series: string[]; grid: string; axis: string; ink: string; ink2: string; surface: string; good: string; bad: string; warn: string; line: string };
+  colors: { series: string[]; grid: string; axis: string; ink: string; ink2: string; muted: string; surface: string; good: string; bad: string; warn: string; line: string; brand: string; brand2: string; violet: string };
 }
 
 const Ctx = createContext<ThemeCtx>(null as unknown as ThemeCtx);
@@ -22,6 +22,10 @@ function readColors(): ThemeCtx["colors"] {
     axis: v("--axis"),
     ink: rgb("--ink"),
     ink2: rgb("--ink2"),
+    muted: rgb("--muted"),
+    brand: rgb("--brand"),
+    brand2: rgb("--brand2"),
+    violet: rgb("--violet"),
     surface: rgb("--surface"),
     good: rgb("--good"),
     bad: rgb("--bad"),
@@ -33,9 +37,9 @@ function readColors(): ThemeCtx["colors"] {
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [pref, setPrefState] = useState<ThemePref>(() => {
     try {
-      return (localStorage.getItem(KEY) as ThemePref) || "system";
+      return (localStorage.getItem(KEY) as ThemePref) || "dark";
     } catch {
-      return "system";
+      return "dark";
     }
   });
   const [sysDark, setSysDark] = useState(() => window.matchMedia("(prefers-color-scheme: dark)").matches);
@@ -51,11 +55,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const dark = pref === "dark" || (pref === "system" && sysDark);
 
   useEffect(() => {
-    const el = document.documentElement;
-    if (pref === "system") delete el.dataset.theme;
-    else el.dataset.theme = pref;
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
     setColors(readColors());
-  }, [pref, sysDark]);
+  }, [dark]);
 
   const setPref = (p: ThemePref) => {
     setPrefState(p);

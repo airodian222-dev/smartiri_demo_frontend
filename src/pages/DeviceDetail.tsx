@@ -6,9 +6,10 @@ import * as api from "@/api/chirpstack";
 import type { Device, DeviceActivation, DeviceKeys, DeviceProfile, Metric } from "@/api/types";
 import { ChartCard, MetricChart } from "@/components/charts";
 import { BatteryBar, deviceState } from "@/components/DeviceTable";
+import { deviceKind, SensorChip, sensorMeta } from "@/components/sensors";
 import { LogStream } from "@/components/LogStream";
 import { TimeRangePicker, useWindow, type RangeKey } from "@/components/TimeRange";
-import { Badge, Card, ConfirmButton, Empty, ErrorBox, Field, FormActions, HexInput, KeyValueEditor, KV, Loading, PageHeader, Select, Spinner, Tabs, Toggle } from "@/components/ui";
+import { Badge, Card, ConfirmButton, Empty, ErrorBox, Field, FormActions, HexInput, KeyValueEditor, KV, Loading, Select, Spinner, Tabs, Toggle } from "@/components/ui";
 import { useSession } from "@/context/session";
 import { base64ToHex, enumLabel, fmtDate, fmtFreq, hexToBase64, timeAgo } from "@/lib/format";
 import { useAction, useLogStream } from "@/lib/hooks";
@@ -31,22 +32,49 @@ export default function DeviceDetail() {
   const d = q.data;
   const profile = dp.data?.deviceProfile;
   const st = deviceState(d.lastSeenAt);
+  const kind = deviceKind(d.device.tags, profile?.name);
 
   return (
     <div>
-      <PageHeader
-        title={d.device.name}
-        breadcrumbs={[{ label: "Applications", to: "/applications" }, { label: app.data?.application.name ?? "…", to: appId ? `/applications/${appId}` : undefined }, { label: d.device.name }]}
-        subtitle={
-          <span className="flex flex-wrap items-center gap-2">
-            <span className="mono text-xs">{d.device.devEui}</span>
-            <Badge tone={st.tone} dot>{st.label}</Badge>
-            {d.device.isDisabled && <Badge tone="bad">Disabled</Badge>}
-            {d.lastSeenAt && <span className="text-xs">last seen {timeAgo(d.lastSeenAt)}</span>}
-          </span>
-        }
-        actions={<ConfirmButton className="btn-secondary text-bad" onConfirm={() => del.mutateAsync(undefined)} title="Delete device?" message="The device, its keys, activation and queue are deleted."><Trash2 className="h-4 w-4" /> Delete</ConfirmButton>}
-      />
+      <nav className="text-xs text-muted mb-3 flex items-center gap-1">
+        <Link to="/devices" className="hover:text-ink">Devices</Link> <span className="opacity-60">/</span>
+        <Link to={appId ? `/applications/${appId}` : "/applications"} className="hover:text-ink">{app.data?.application.name ?? "…"}</Link> <span className="opacity-60">/</span>
+        <span className="text-ink2">{d.device.name}</span>
+      </nav>
+      <section className="card relative overflow-hidden p-5 sm:p-6 mb-6 animate-rise">
+        <div className={`absolute -right-20 -top-24 h-64 w-64 rounded-full bg-gradient-to-br ${kind.gradient} opacity-20 blur-3xl`} />
+        <div className="relative flex flex-wrap items-start gap-5">
+          <SensorChip gradient={kind.gradient} size="lg">{kind.icon}</SensorChip>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight">{d.device.name}</h1>
+              <Badge tone={st.tone} dot>{st.label}</Badge>
+              {d.device.isDisabled && <Badge tone="bad">Disabled</Badge>}
+              <Badge tone="brand">{(d.classEnabled ?? "CLASS_A").replace("_", " ")}</Badge>
+            </div>
+            <div className="text-sm text-muted mt-1 flex flex-wrap gap-x-3">
+              <span>{kind.label}</span>
+              <span className="mono">{d.device.devEui}</span>
+              {profile && <span>{profile.region} · {enumLabel(profile.macVersion)}</span>}
+            </div>
+            {d.device.description && <p className="text-sm text-ink2 mt-2 max-w-2xl">{d.device.description}</p>}
+          </div>
+          <ConfirmButton className="btn-secondary text-bad" onConfirm={() => del.mutateAsync(undefined)} title="Delete device?" message="The device, its keys, activation and queue are deleted."><Trash2 className="h-4 w-4" /> Delete</ConfirmButton>
+        </div>
+        <div className="relative grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+          {[
+            ["Last seen", d.lastSeenAt ? timeAgo(d.lastSeenAt) : "Never"],
+            ["Battery", <BatteryBar level={d.deviceStatus?.batteryLevel} external={d.deviceStatus?.externalPowerSource} />],
+            ["Link margin", d.deviceStatus?.margin !== undefined && d.lastSeenAt ? `${d.deviceStatus.margin} dB` : "—"],
+            ["Application", app.data?.application.name ?? "…"],
+          ].map(([k, v], i) => (
+            <div key={i} className="rounded-xl bg-raised/60 border border-line/60 px-3.5 py-2.5">
+              <div className="text-[10.5px] uppercase tracking-wider text-muted">{k}</div>
+              <div className="text-sm font-semibold mt-1 truncate">{v}</div>
+            </div>
+          ))}
+        </div>
+      </section>
       <Tabs
         value={tab}
         onChange={setTab}
@@ -89,6 +117,18 @@ function DeviceDashboard({ devEui, profile, info, onTab }: { devEui: string; pro
   }, [events.items]);
   const st = info.deviceStatus;
   const measurements = profile?.measurements ?? {};
+  // Fallback when no live uplink arrived yet: last non-zero value of each measurement metric.
+  const fromMetrics = useMemo(() => {
+    const o: Record<string, unknown> = {};
+    for (const [k, m] of Object.entries(metrics.data?.metrics ?? {})) {
+      if (m.kind === "COUNTER") continue;
+      const last = [...(m.datasets?.[0]?.data ?? [])].reverse().find((x) => x !== 0);
+      if (last !== undefined) o[k] = +last.toFixed(1);
+    }
+    for (const [k, s] of Object.entries(metrics.data?.states ?? {})) o[k] = s.value;
+    return o;
+  }, [metrics.data]);
+  const values = lastUp?.object && Object.keys(lastUp.object).length ? lastUp.object : Object.keys(fromMetrics).length ? fromMetrics : null;
   const gaugeEntries = Object.entries(metrics.data?.metrics ?? {});
   const states = Object.entries(metrics.data?.states ?? {});
   const unitOf = (name?: string) => name?.match(/\(([^)]+)\)$/)?.[1];
@@ -111,25 +151,34 @@ function DeviceDashboard({ devEui, profile, info, onTab }: { devEui: string; pro
         </Card>
         <Card
           title="Latest uplink"
-          subtitle={lastUp ? `${timeAgo(lastUp.time)} · fCnt ${lastUp.fCnt} · fPort ${lastUp.fPort} · DR${lastUp.dr}` : "Live from the device event stream"}
+          subtitle={lastUp ? `${timeAgo(lastUp.time)} · fCnt ${lastUp.fCnt} · fPort ${lastUp.fPort} · DR${lastUp.dr}` : values ? "Last stored measurements · waiting for the next uplink" : "Live from the device event stream"}
           actions={<button className="btn-ghost btn-sm" onClick={() => onTab("events")}>All events →</button>}
           className="lg:col-span-2"
         >
-          {!lastUp ? (
+          {!values ? (
             <Empty title="No uplink received yet" icon={<Radio className="h-5 w-5" />}>New uplinks appear here as they arrive.</Empty>
           ) : (
             <div className="space-y-4">
-              {lastUp.object && Object.keys(lastUp.object).length > 0 && (
+              {values && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {Object.entries(lastUp.object).map(([k, v]) => (
-                    <div key={k} className="rounded-lg border border-line bg-raised/50 px-3 py-2.5">
-                      <div className="text-xs text-muted truncate">{measurements[k]?.name ?? k}</div>
-                      <div className="text-xl font-semibold mt-0.5 tnum">{typeof v === "boolean" ? (v ? "Yes" : "No") : String(v)}</div>
-                    </div>
-                  ))}
+                  {Object.entries(values).map(([k, v]) => {
+                    const sm = sensorMeta(k, measurements[k]?.name);
+                    return (
+                      <div key={k} className="rounded-2xl border border-line/70 bg-raised/50 p-3.5 flex items-center gap-3">
+                        <SensorChip gradient={sm.gradient} size="sm">{sm.icon}</SensorChip>
+                        <div className="min-w-0">
+                          <div className="text-xs text-muted truncate">{sm.label}</div>
+                          <div className="text-xl font-bold tnum leading-tight">
+                            {typeof v === "boolean" ? (v ? "Yes" : "No") : String(v)}
+                            {sm.unit && typeof v === "number" && <span className="text-xs text-muted font-medium ml-1">{sm.unit}</span>}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
-              <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+              {lastUp && <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
                 <div><span className="text-muted">Raw payload: </span><span className="mono break-all">{base64ToHex(lastUp.data) || "—"}</span></div>
                 <div><span className="text-muted">Frequency: </span>{fmtFreq(lastUp.txInfo?.frequency)}</div>
                 <div className="sm:col-span-2">
@@ -140,7 +189,7 @@ function DeviceDashboard({ devEui, profile, info, onTab }: { devEui: string; pro
                     </Link>
                   ))}
                 </div>
-              </div>
+              </div>}
             </div>
           )}
         </Card>
@@ -163,8 +212,8 @@ function DeviceDashboard({ devEui, profile, info, onTab }: { devEui: string; pro
         <div className="grid lg:grid-cols-2 xl:grid-cols-3 gap-4">
           {metrics.isLoading && <Loading />}
           {gaugeEntries.map(([k, m]: [string, Metric]) => (
-            <ChartCard key={k} title={m.name || measurements[k]?.name || k} subtitle={m.kind === "COUNTER" ? "per period" : undefined}>
-              <MetricChart metric={m} aggregation={w.aggregation} unit={unitOf(m.name)} kind={m.kind === "COUNTER" ? "bar" : "line"} />
+            <ChartCard key={k} icon={sensorMeta(k).icon} title={m.name || measurements[k]?.name || k} subtitle={m.kind === "COUNTER" ? "per period" : undefined}>
+              <MetricChart metric={m} aggregation={w.aggregation} unit={unitOf(m.name)} kind={m.kind === "COUNTER" ? "bar" : "line"} seriesOffset={sensorMeta(k).series} />
             </ChartCard>
           ))}
           {!metrics.isLoading && gaugeEntries.length === 0 && (
@@ -176,8 +225,8 @@ function DeviceDashboard({ devEui, profile, info, onTab }: { devEui: string; pro
       {link.error ? <ErrorBox error={link.error} /> : (
         <div className="grid lg:grid-cols-2 xl:grid-cols-3 gap-4">
           <ChartCard title="Received"><MetricChart metric={link.data?.rxPackets} aggregation={w.aggregation} kind="bar" unit="frames" /></ChartCard>
-          <ChartCard title="RSSI" subtitle="dBm, best gateway"><MetricChart metric={link.data?.gwRssi} aggregation={w.aggregation} kind="line" unit="dBm" /></ChartCard>
-          <ChartCard title="SNR" subtitle="dB, best gateway"><MetricChart metric={link.data?.gwSnr} aggregation={w.aggregation} kind="line" unit="dB" /></ChartCard>
+          <ChartCard title="RSSI" subtitle="dBm, best gateway"><MetricChart metric={link.data?.gwRssi} aggregation={w.aggregation} kind="line" unit="dBm" seriesOffset={2} /></ChartCard>
+          <ChartCard title="SNR" subtitle="dB, best gateway"><MetricChart metric={link.data?.gwSnr} aggregation={w.aggregation} kind="line" unit="dB" seriesOffset={4} /></ChartCard>
           <ChartCard title="Received / frequency"><MetricChart metric={link.data?.rxPacketsPerFreq} aggregation={w.aggregation} kind="bar" stacked labelFormat={(l) => fmtFreq(+l)} /></ChartCard>
           <ChartCard title="Received / DR"><MetricChart metric={link.data?.rxPacketsPerDr} aggregation={w.aggregation} kind="bar" stacked labelFormat={(l) => `DR${l}`} /></ChartCard>
           <ChartCard title="Errors"><MetricChart metric={link.data?.errors} aggregation={w.aggregation} kind="bar" stacked /></ChartCard>

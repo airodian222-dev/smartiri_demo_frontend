@@ -325,8 +325,10 @@ export function startSimulator() {
   if (timer) return;
   // Backfill the last few minutes so streams and feeds are not empty on first load.
   const live = db.devices.filter((d) => d.simulated && !d.isDisabled && db.activations[d.devEui]);
-  const start = Date.now() - 6 * 60_000;
-  for (let i = 0; i < 40 && live.length; i++) uplink(pick(live), new Date(start + i * 9_000));
+  const start = Date.now() - 8 * 60_000;
+  const order = [...live].sort(() => rnd() - 0.5);
+  const n = Math.max(40, order.length);
+  for (let i = 0; i < n && live.length; i++) uplink(i < order.length ? order[i] : pick(live), new Date(start + (i * 8 * 60_000) / n));
   timer = setInterval(tick, 2500);
 }
 

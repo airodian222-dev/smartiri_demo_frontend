@@ -1,15 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
-import { Activity, FileKey, Gauge, Settings, Trash2 } from "lucide-react";
+import { Activity, FileKey, Gauge, RadioTower, Settings, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import * as api from "@/api/chirpstack";
 import type { Gateway, GatewayCertificate } from "@/api/types";
 import { ChartCard, MetricChart } from "@/components/charts";
 import { GatewayForm } from "@/components/GatewayForm";
 import { PointsMap } from "@/components/GatewayMap";
 import { LogStream } from "@/components/LogStream";
+import { SensorChip } from "@/components/sensors";
 import { TimeRangePicker, useWindow, type RangeKey } from "@/components/TimeRange";
-import { Card, ConfirmButton, CopyButton, ErrorBox, FormActions, KV, Loading, PageHeader, Spinner, StatusDot, Tabs } from "@/components/ui";
+import { Card, ConfirmButton, CopyButton, ErrorBox, FormActions, KV, Loading, Spinner, StatusDot, Tabs } from "@/components/ui";
 import { useTheme } from "@/context/theme";
 import { fmtDate, fmtFreq, timeAgo } from "@/lib/format";
 import { useAction } from "@/lib/hooks";
@@ -24,7 +25,7 @@ export default function GatewayDetail() {
   const [range, setRange] = useState<RangeKey>("24h");
   const w = useWindow(range);
   const q = useQuery({ queryKey: ["gateway", id], queryFn: () => api.gateways.get(id!) });
-  const metrics = useQuery({ queryKey: ["gateway", id, "metrics", w], queryFn: () => api.gateways.metrics(id!, w), enabled: tab === "dashboard" });
+  const metrics = useQuery({ queryKey: ["gateway", id, "metrics", w], queryFn: () => api.gateways.metrics(id!, w) });
   const [g, setG] = useState<Gateway | null>(null);
   const [cert, setCert] = useState<GatewayCertificate | null>(null);
   useEffect(() => {
@@ -43,12 +44,40 @@ export default function GatewayDetail() {
 
   return (
     <div>
-      <PageHeader
-        title={g.name}
-        breadcrumbs={[{ label: "Gateways", to: "/gateways" }, { label: g.name }]}
-        subtitle={<span className="flex items-center gap-2"><span className="mono text-xs">{g.gatewayId}</span><StatusDot state={state} />{data.lastSeenAt && <span className="text-xs">last seen {timeAgo(data.lastSeenAt)}</span>}</span>}
-        actions={<ConfirmButton className="btn-secondary text-bad" onConfirm={() => del.mutateAsync(undefined)} title="Delete gateway?"><Trash2 className="h-4 w-4" /> Delete</ConfirmButton>}
-      />
+      <nav className="text-xs text-muted mb-3 flex items-center gap-1">
+        <Link to="/gateways" className="hover:text-ink">Gateways</Link> <span className="opacity-60">/</span> <span className="text-ink2">{g.name}</span>
+      </nav>
+      <section className="card relative overflow-hidden p-5 sm:p-6 mb-6 animate-rise">
+        <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-gradient-to-br from-cyan-500 to-indigo-500 opacity-20 blur-3xl" />
+        <div className="relative flex flex-wrap items-start gap-5">
+          <SensorChip gradient="from-cyan-500 to-indigo-500" size="lg"><RadioTower /></SensorChip>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight">{g.name}</h1>
+              <StatusDot state={state} />
+            </div>
+            <div className="text-sm text-muted mt-1 flex flex-wrap gap-x-3">
+              <span className="mono">{g.gatewayId}</span>
+              <span>{data.gateway.metadata?.region_config_id ?? "region n/a"}</span>
+            </div>
+            {g.description && <p className="text-sm text-ink2 mt-2">{g.description}</p>}
+          </div>
+          <ConfirmButton className="btn-secondary text-bad" onConfirm={() => del.mutateAsync(undefined)} title="Delete gateway?"><Trash2 className="h-4 w-4" /> Delete</ConfirmButton>
+        </div>
+        <div className="relative grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+          {[
+            ["Last seen", data.lastSeenAt ? timeAgo(data.lastSeenAt) : "Never"],
+            [`Uplinks (${range})`, (m?.rxPackets?.datasets?.[0]?.data ?? []).reduce((a, b) => a + b, 0).toLocaleString()],
+            [`Downlinks (${range})`, (m?.txPackets?.datasets?.[0]?.data ?? []).reduce((a, b) => a + b, 0).toLocaleString()],
+            ["Location", g.location?.latitude ? `${g.location.latitude.toFixed(4)}, ${g.location.longitude?.toFixed(4)}` : "—"],
+          ].map(([k, v]) => (
+            <div key={k} className="rounded-xl bg-raised/60 border border-line/60 px-3.5 py-2.5">
+              <div className="text-[10.5px] uppercase tracking-wider text-muted">{k}</div>
+              <div className="text-sm font-semibold mt-1 truncate tnum">{v}</div>
+            </div>
+          ))}
+        </div>
+      </section>
       <Tabs
         value={tab}
         onChange={setTab}
@@ -88,7 +117,7 @@ export default function GatewayDetail() {
           {metrics.error ? <ErrorBox error={metrics.error} /> : metrics.isLoading ? <Loading /> : (
             <div className="grid lg:grid-cols-2 gap-4">
               <ChartCard title="Received"><MetricChart metric={m?.rxPackets} aggregation={w.aggregation} kind="bar" unit="frames" /></ChartCard>
-              <ChartCard title="Transmitted"><MetricChart metric={m?.txPackets} aggregation={w.aggregation} kind="bar" unit="frames" /></ChartCard>
+              <ChartCard title="Transmitted"><MetricChart metric={m?.txPackets} aggregation={w.aggregation} kind="bar" unit="frames" seriesOffset={1} /></ChartCard>
               <ChartCard title="Received / frequency"><MetricChart metric={m?.rxPacketsPerFreq} aggregation={w.aggregation} kind="bar" stacked labelFormat={freqLabel} /></ChartCard>
               <ChartCard title="Transmitted / frequency"><MetricChart metric={m?.txPacketsPerFreq} aggregation={w.aggregation} kind="bar" stacked labelFormat={freqLabel} /></ChartCard>
               <ChartCard title="Received / DR"><MetricChart metric={m?.rxPacketsPerDr} aggregation={w.aggregation} kind="bar" stacked labelFormat={(l) => `DR${l}`} /></ChartCard>

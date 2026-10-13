@@ -9,22 +9,22 @@ export function Card({ title, actions, children, className, bodyClass, subtitle 
   return (
     <section className={clsx("card", className)}>
       {(title || actions) && (
-        <header className="flex items-center justify-between gap-3 px-4 pt-3.5 pb-2">
+        <header className="flex items-center justify-between gap-3 px-5 pt-4 pb-2.5">
           <div className="min-w-0">
-            {title && <h3 className="text-sm font-semibold text-ink truncate">{title}</h3>}
+            {title && <h3 className="text-[15px] font-semibold text-ink truncate tracking-tight">{title}</h3>}
             {subtitle && <p className="text-xs text-muted mt-0.5">{subtitle}</p>}
           </div>
           {actions && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
         </header>
       )}
-      <div className={clsx(bodyClass ?? "px-4 pb-4", !(title || actions) && !bodyClass && "pt-4")}>{children}</div>
+      <div className={clsx(bodyClass ?? "px-5 pb-5", !(title || actions) && !bodyClass && "pt-5")}>{children}</div>
     </section>
   );
 }
 
 export function PageHeader({ title, breadcrumbs, actions, subtitle, icon }: { title: ReactNode; breadcrumbs?: { label: string; to?: string }[]; actions?: ReactNode; subtitle?: ReactNode; icon?: ReactNode }) {
   return (
-    <div className="mb-5">
+    <div className="mb-6 animate-rise">
       {breadcrumbs && breadcrumbs.length > 0 && (
         <nav className="text-xs text-muted mb-1.5 flex flex-wrap items-center gap-1">
           {breadcrumbs.map((b, i) => (
@@ -43,9 +43,9 @@ export function PageHeader({ title, breadcrumbs, actions, subtitle, icon }: { ti
       )}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          {icon && <div className="h-10 w-10 rounded-lg bg-brand/10 text-brand grid place-items-center shrink-0">{icon}</div>}
+          {icon && <div className="h-11 w-11 rounded-2xl gradient-brand text-white grid place-items-center shrink-0 shadow-glow [&>svg]:h-5 [&>svg]:w-5">{icon}</div>}
           <div className="min-w-0">
-            <h1 className="text-xl font-semibold text-ink truncate">{title}</h1>
+            <h1 className="text-2xl font-bold text-ink truncate tracking-tight">{title}</h1>
             {subtitle && <div className="text-sm text-muted mt-0.5">{subtitle}</div>}
           </div>
         </div>
@@ -57,17 +57,22 @@ export function PageHeader({ title, breadcrumbs, actions, subtitle, icon }: { ti
 
 type Tone = "neutral" | "good" | "warn" | "bad" | "brand" | "serious";
 const toneClass: Record<Tone, string> = {
-  neutral: "bg-raised text-ink2 border-line",
-  good: "bg-good/10 text-good border-good/30",
-  warn: "bg-warn/20 text-ink border-warn/50",
-  serious: "bg-serious/15 text-serious border-serious/40",
-  bad: "bg-bad/10 text-bad border-bad/30",
-  brand: "bg-brand/10 text-brand border-brand/30",
+  neutral: "bg-raised/80 text-ink2 border-line",
+  good: "bg-good/12 text-good border-good/25",
+  warn: "bg-warn/15 text-warn border-warn/30",
+  serious: "bg-serious/12 text-serious border-serious/30",
+  bad: "bg-bad/12 text-bad border-bad/25",
+  brand: "bg-brand/12 text-brand border-brand/30",
 };
 export function Badge({ tone = "neutral", children, dot, className }: { tone?: Tone; children: ReactNode; dot?: boolean; className?: string }) {
   return (
-    <span className={clsx("inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap", toneClass[tone], className)}>
-      {dot && <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+    <span className={clsx("inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11.5px] font-medium whitespace-nowrap", toneClass[tone], className)}>
+      {dot && (
+        <span className="relative flex h-1.5 w-1.5">
+          {tone === "good" && <span className="absolute inline-flex h-full w-full rounded-full bg-current animate-ping2" />}
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-current" />
+        </span>
+      )}
       {children}
     </span>
   );
@@ -101,7 +106,7 @@ export function ErrorBox({ error, title = "Request failed" }: { error: unknown; 
 export function Empty({ icon, title, children, action }: { icon?: ReactNode; title: string; children?: ReactNode; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center text-center py-12 px-6">
-      {icon && <div className="h-11 w-11 rounded-full bg-raised text-muted grid place-items-center mb-3">{icon}</div>}
+      {icon && <div className="h-12 w-12 rounded-2xl bg-brand/10 text-brand grid place-items-center mb-3 ring-1 ring-brand/20">{icon}</div>}
       <div className="font-medium text-ink">{title}</div>
       {children && <div className="text-sm text-muted mt-1 max-w-md">{children}</div>}
       {action && <div className="mt-4">{action}</div>}
@@ -128,7 +133,7 @@ export function Toggle({ checked, onChange, label, help, disabled }: { checked: 
         aria-checked={checked}
         disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={clsx("relative mt-0.5 h-5 w-9 shrink-0 rounded-full transition-colors", checked ? "bg-brand" : "bg-line")}
+        className={clsx("relative mt-0.5 h-5 w-9 shrink-0 rounded-full transition-colors", checked ? "gradient-brand shadow-glow" : "bg-line")}
       >
         <span className={clsx("absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all", checked ? "left-[18px]" : "left-0.5")} />
       </button>
@@ -180,7 +185,7 @@ export function HexInput({ value, onChange, bytes, secret, disabled, placeholder
   const [msb, setMsb] = useState(true);
   const display = msb ? value : (value.match(/../g) ?? []).reverse().join("");
   return (
-    <div className="flex items-stretch rounded-lg border border-line bg-surface focus-within:ring-2 focus-within:ring-brand/40 focus-within:border-brand">
+    <div className="flex items-stretch rounded-xl border border-line bg-raised/50 focus-within:ring-4 focus-within:ring-brand/20 focus-within:border-brand/70">
       <input
         className="flex-1 min-w-0 bg-transparent px-3 py-2 text-sm mono focus:outline-none"
         type={show ? "text" : "password"}
@@ -232,16 +237,16 @@ export function Modal({ open, onClose, title, children, footer, wide }: { open: 
   if (!open) return null;
   return createPortal(
     <div className="fixed inset-0 z-[1000] flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className={clsx("relative card w-full shadow-xl my-8", wide ? "max-w-3xl" : "max-w-lg")}>
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-line">
-          <h2 className="font-semibold">{title}</h2>
+      <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={onClose} />
+      <div className={clsx("relative card bg-surface w-full shadow-2xl my-8 animate-rise", wide ? "max-w-3xl" : "max-w-lg")}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-line">
+          <h2 className="font-semibold text-base tracking-tight">{title}</h2>
           <button className="btn-ghost btn-sm" onClick={onClose} aria-label="Close">
             <X className="h-4 w-4" />
           </button>
         </div>
         <div className="px-5 py-4">{children}</div>
-        {footer && <div className="flex justify-end gap-2 px-5 py-3 border-t border-line bg-raised/50 rounded-b-xl">{footer}</div>}
+        {footer && <div className="flex justify-end gap-2 px-5 py-3.5 border-t border-line bg-raised/40 rounded-b-2xl">{footer}</div>}
       </div>
     </div>,
     document.body,
@@ -291,15 +296,15 @@ export function ConfirmButton({ onConfirm, children, title = "Are you sure?", me
 
 export function Tabs<K extends string>({ tabs, value, onChange }: { tabs: { key: K; label: ReactNode; icon?: ReactNode }[]; value: K; onChange: (k: K) => void }) {
   return (
-    <div className="border-b border-line mb-5 -mx-1 overflow-x-auto">
-      <div className="flex gap-1 px-1">
+    <div className="mb-6 overflow-x-auto">
+      <div className="inline-flex gap-1 rounded-2xl border border-line/80 bg-surface/60 backdrop-blur p-1">
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => onChange(t.key)}
             className={clsx(
-              "flex items-center gap-1.5 px-3 py-2.5 text-sm border-b-2 -mb-px whitespace-nowrap transition-colors",
-              value === t.key ? "border-brand text-ink font-medium" : "border-transparent text-muted hover:text-ink",
+              "flex items-center gap-1.5 px-3.5 py-2 text-sm rounded-xl whitespace-nowrap transition-all [&>svg]:h-4 [&>svg]:w-4",
+              value === t.key ? "gradient-brand text-white font-medium shadow-glow" : "text-ink2 hover:text-ink hover:bg-raised",
             )}
           >
             {t.icon}
@@ -369,12 +374,12 @@ export function JsonView({ value, className }: { value: unknown; className?: str
   const text = typeof value === "string" ? value : JSON.stringify(value, null, 2);
   return (
     <div className={clsx("relative group", className)}>
-      <pre className="mono text-xs bg-raised border border-line rounded-lg p-3 overflow-auto max-h-[420px] whitespace-pre text-ink2">{text}</pre>
+      <pre className="mono text-xs bg-page/70 border border-line rounded-xl p-4 overflow-auto max-h-[420px] whitespace-pre text-ink2 leading-5">{text}</pre>
       <CopyButton text={text} className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 bg-surface" />
     </div>
   );
 }
 
 export function FormActions({ children }: { children: ReactNode }) {
-  return <div className="flex flex-wrap justify-end gap-2 pt-4 mt-2 border-t border-line">{children}</div>;
+  return <div className="flex flex-wrap justify-end gap-2 pt-5 mt-4 border-t border-line">{children}</div>;
 }

@@ -14,6 +14,7 @@ export interface MapPoint {
   link?: string;
   color?: string;
   radius?: number;
+  pulse?: boolean;
 }
 
 function FitBounds({ points }: { points: { lat: number; lng: number }[] }) {
@@ -40,20 +41,22 @@ export function gatewayPoints(gws: GatewayListItem[], colors: { good: string; ba
       sub: `${g.state === "ONLINE" ? "Online" : g.state === "OFFLINE" ? "Offline" : "Never seen"} · last seen ${timeAgo(g.lastSeenAt)}`,
       link: `/gateways/${g.gatewayId}`,
       color: g.state === "ONLINE" ? colors.good : g.state === "OFFLINE" ? colors.bad : colors.axis,
-      radius: 9,
+      radius: 8,
+      pulse: g.state === "ONLINE",
     }));
 }
 
 export function PointsMap({ points, height = 320, extra }: { points: MapPoint[]; height?: number | string; extra?: MapPoint[] }) {
-  const { colors } = useTheme();
+  const { colors, dark } = useTheme();
   const all = [...points, ...(extra ?? [])];
+  const tiles = `https://{s}.basemaps.cartocdn.com/${dark ? "dark_all" : "light_all"}/{z}/{x}/{y}{r}.png`;
   return (
     <div style={{ height }} className="relative z-0">
       <MapContainer center={[1.3521, 103.8198]} zoom={11} scrollWheelZoom={false} style={{ height: "100%", width: "100%" }}>
-        <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <TileLayer key={tiles} attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>' url={tiles} />
         <FitBounds points={all} />
         {(extra ?? []).map((p) => (
-          <CircleMarker key={`x-${p.id}`} center={[p.lat, p.lng]} radius={p.radius ?? 5} pathOptions={{ color: colors.surface, weight: 2, fillColor: p.color ?? colors.series[1], fillOpacity: 0.95 }}>
+          <CircleMarker key={`x-${p.id}`} center={[p.lat, p.lng]} radius={p.radius ?? 5} pathOptions={{ color: dark ? "#0b1024" : "#ffffff", weight: 2, fillColor: p.color ?? colors.series[1], fillOpacity: 0.95 }}>
             <Tooltip>{p.label}</Tooltip>
             <Popup>
               <div className="text-sm font-medium">{p.link ? <Link to={p.link}>{p.label}</Link> : p.label}</div>
@@ -61,8 +64,11 @@ export function PointsMap({ points, height = 320, extra }: { points: MapPoint[];
             </Popup>
           </CircleMarker>
         ))}
+        {points.filter((p) => p.pulse).map((p) => (
+          <CircleMarker key={`p-${p.id}`} center={[p.lat, p.lng]} radius={(p.radius ?? 8) + 4} interactive={false} pathOptions={{ stroke: false, fillColor: p.color ?? colors.series[0], fillOpacity: 0.5, className: "pulse-marker" }} />
+        ))}
         {points.map((p) => (
-          <CircleMarker key={p.id} center={[p.lat, p.lng]} radius={p.radius ?? 8} pathOptions={{ color: colors.surface, weight: 2, fillColor: p.color ?? colors.series[0], fillOpacity: 1 }}>
+          <CircleMarker key={p.id} center={[p.lat, p.lng]} radius={p.radius ?? 8} pathOptions={{ color: dark ? "#0b1024" : "#ffffff", weight: 3, fillColor: p.color ?? colors.series[0], fillOpacity: 1 }}>
             <Tooltip>{p.label}</Tooltip>
             <Popup>
               <div className="text-sm font-medium">{p.link ? <Link to={p.link}>{p.label}</Link> : p.label}</div>

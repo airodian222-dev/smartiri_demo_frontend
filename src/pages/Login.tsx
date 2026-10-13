@@ -1,4 +1,4 @@
-import { Cpu, Play, RadioTower, Server, Zap } from "lucide-react";
+import { Activity, Cpu, Play, RadioTower, Server } from "lucide-react";
 import { useState } from "react";
 import { login } from "@/api/internal";
 import { Field, Spinner, Toggle } from "@/components/ui";
@@ -37,55 +37,55 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-full grid lg:grid-cols-2">
-      <div className="hidden lg:flex flex-col justify-between p-10 bg-brand text-white relative overflow-hidden">
-        <div className="flex items-center gap-3">
-          <img src="/favicon.svg" className="h-9 w-9 rounded-lg ring-2 ring-white/30" alt="" />
-          <div>
-            <div className="font-semibold text-lg">SmartIRI IoT Console</div>
-            <div className="text-white/70 text-sm">A modern dashboard for ChirpStack v4</div>
-          </div>
-        </div>
-        <div className="space-y-6 max-w-md">
-          <h1 className="text-3xl font-semibold leading-tight">Every ChirpStack function, in one clear IoT dashboard.</h1>
-          <ul className="space-y-3 text-white/85 text-sm">
-            <li className="flex gap-3"><Cpu className="h-5 w-5 shrink-0" /> Devices: provisioning, OTAA keys, ABP activation, downlink queue, live events & LoRaWAN frames, metrics.</li>
-            <li className="flex gap-3"><RadioTower className="h-5 w-5 shrink-0" /> Gateways: map, status, RX/TX metrics, live frames, client certificates.</li>
-            <li className="flex gap-3"><Server className="h-5 w-5 shrink-0" /> Tenants, users, API keys, applications, integrations, device profiles, multicast groups, regions.</li>
-          </ul>
-        </div>
-        <div className="text-white/60 text-xs">Uses the ChirpStack REST API (chirpstack-rest-api) and gRPC-web for live streams.</div>
-        <div className="absolute -right-24 -bottom-24 h-80 w-80 rounded-full border-[40px] border-white/10" />
-        <div className="absolute -right-8 -bottom-8 h-48 w-48 rounded-full border-[28px] border-white/10" />
-      </div>
-
-      <div className="flex items-center justify-center p-6">
-        <div className="w-full max-w-md space-y-6">
-          <div className="lg:hidden flex items-center gap-3">
-            <img src="/favicon.svg" className="h-9 w-9" alt="" />
-            <div className="font-semibold text-lg">SmartIRI IoT Console</div>
-          </div>
-
-          <div className="card p-5">
-            <div className="flex items-start gap-3">
-              <div className="h-10 w-10 rounded-lg bg-warn/20 grid place-items-center shrink-0">
-                <Zap className="h-5 w-5 text-ink" />
-              </div>
-              <div className="flex-1">
-                <h2 className="font-semibold">Explore the demo</h2>
-                <p className="text-sm text-muted mt-0.5">A simulated ChirpStack network with 2 tenants, 7 gateways and 29 devices sending live uplinks. Everything is editable; changes are kept in your browser.</p>
-              </div>
+    <div data-theme="dark" className="min-h-full relative overflow-hidden bg-[#060914] text-ink" style={{ colorScheme: "dark" }}>
+      <div className="absolute inset-0 bg-[radial-gradient(60%_60%_at_15%_10%,rgba(99,102,241,0.35),transparent_60%),radial-gradient(50%_50%_at_90%_20%,rgba(6,182,212,0.25),transparent_60%),radial-gradient(60%_60%_at_60%_100%,rgba(168,85,247,0.25),transparent_60%)]" />
+      <div className="absolute inset-0 opacity-[0.07] bg-[linear-gradient(rgba(255,255,255,.6)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.6)_1px,transparent_1px)] bg-[size:48px_48px]" />
+      <div className="relative min-h-full grid lg:grid-cols-[1.1fr_1fr] gap-10 max-w-7xl mx-auto px-6 py-10 lg:py-16 items-center">
+        <div className="space-y-8">
+          <div className="flex items-center gap-3">
+            <img src="/favicon.svg" className="h-11 w-11 drop-shadow-[0_8px_24px_rgba(99,102,241,0.7)]" alt="" />
+            <div>
+              <div className="font-bold text-lg text-white">SmartIRI</div>
+              <div className="text-sm text-slate-400">IoT Command Center</div>
             </div>
-            <button className="btn-primary w-full mt-4" onClick={() => connect({ mode: "demo", restUrl: "", grpcUrl: "", token: "" })}>
+          </div>
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-slate-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" /> Powered by ChirpStack v4 · LoRaWAN®
+            </span>
+            <h1 className="mt-5 text-4xl sm:text-5xl font-extrabold tracking-tight leading-[1.08] text-white">
+              See every sensor,<br />
+              <span className="gradient-text">every signal, live.</span>
+            </h1>
+            <p className="mt-4 text-slate-300 max-w-lg">A real-time command center for your LoRaWAN network: live sensor data, gateway coverage, device health, downlinks and every network setting, all in one place.</p>
+          </div>
+          <div className="grid grid-cols-3 gap-3 max-w-lg">
+            {[
+              { i: <Cpu className="h-5 w-5" />, v: "29", l: "devices", g: "from-indigo-500 to-violet-500" },
+              { i: <RadioTower className="h-5 w-5" />, v: "7", l: "gateways", g: "from-cyan-500 to-sky-500" },
+              { i: <Activity className="h-5 w-5" />, v: "Live", l: "uplinks", g: "from-emerald-500 to-teal-500" },
+            ].map((x) => (
+              <div key={x.l} className="rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur p-4">
+                <div className={`h-9 w-9 rounded-xl bg-gradient-to-br ${x.g} text-white grid place-items-center shadow-lg`}>{x.i}</div>
+                <div className="mt-3 text-2xl font-bold text-white">{x.v}</div>
+                <div className="text-xs text-slate-400">demo {x.l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="w-full max-w-md lg:ml-auto">
+          <div className="rounded-3xl border border-white/10 bg-[#0d1328]/80 backdrop-blur-2xl shadow-[0_40px_120px_-40px_rgba(99,102,241,0.7)] p-6 sm:p-7">
+            <h2 className="text-xl font-bold text-white">Welcome</h2>
+            <p className="text-sm text-slate-400 mt-1">Explore instantly, or connect your own ChirpStack.</p>
+            <button className="btn-primary w-full mt-5 py-3 text-[15px]" onClick={() => connect({ mode: "demo", restUrl: "", grpcUrl: "", token: "" })}>
               <Play className="h-4 w-4" /> Launch demo
             </button>
-          </div>
-
-          <div className="flex items-center gap-3 text-xs text-muted">
-            <div className="h-px flex-1 bg-line" /> or connect to your ChirpStack <div className="h-px flex-1 bg-line" />
-          </div>
-
-          <form className="card p-5 space-y-4" onSubmit={connectLive}>
+            <p className="text-xs text-slate-500 mt-2 text-center">Simulated network · edits are kept in your browser</p>
+            <div className="flex items-center gap-3 text-xs text-slate-500 my-6">
+              <div className="h-px flex-1 bg-white/10" /> or connect to ChirpStack <div className="h-px flex-1 bg-white/10" />
+            </div>
+          <form className="space-y-4" onSubmit={connectLive}>
             <Field label="REST API URL" help="chirpstack-rest-api base URL. Leave empty to use this site's /api proxy (see README).">
               <input className="input" placeholder="http://localhost:8090" value={restUrl} onChange={(e) => setRestUrl(e.target.value)} />
             </Field>
@@ -115,6 +115,7 @@ export default function Login() {
               {busy ? <Spinner /> : <Server className="h-4 w-4" />} Connect
             </button>
           </form>
+          </div>
         </div>
       </div>
     </div>

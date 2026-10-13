@@ -1,7 +1,7 @@
 import { Activity, Pause, Play } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { FeedEvent } from "@/api/types";
-import { FeedList } from "@/components/Feed";
+import { EVENT_STYLE, EventIcon, FeedList } from "@/components/Feed";
 import { LogStream } from "@/components/LogStream";
 import { Badge, Card, Empty, JsonView, PageHeader, Select } from "@/components/ui";
 import { useSession } from "@/context/session";
@@ -33,14 +33,17 @@ function DemoFeed() {
       <PageHeader
         title="Live events"
         icon={<Activity className="h-5 w-5" />}
-        subtitle="Integration events of every device in this tenant, as published by ChirpStack"
+        subtitle="Every uplink, join, downlink and alert in this workspace, as it happens"
         actions={<button className="btn-secondary" onClick={() => { setFrozen(all); setPaused(!paused); }}>{paused ? <><Play className="h-4 w-4" /> Resume</> : <><Pause className="h-4 w-4" /> Pause</>}</button>}
       />
-      <div className="flex flex-wrap gap-2 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 mb-5">
         {counts.map(({ t, n }) => (
-          <button key={t} onClick={() => setType(type === t ? "" : t)} className={`card px-3 py-2 text-left min-w-[90px] ${type === t ? "ring-2 ring-brand" : ""}`}>
-            <div className="text-xs text-muted">{t}</div>
-            <div className="text-lg font-semibold tnum">{n}</div>
+          <button key={t} onClick={() => setType(type === t ? "" : t)} className={`card card-hover px-4 py-3 text-left flex items-center gap-3 ${type === t ? "ring-2 ring-brand shadow-glow" : ""}`}>
+            <EventIcon type={t} />
+            <div>
+              <div className="text-xs text-muted">{EVENT_STYLE[t]?.label ?? t}</div>
+              <div className="text-xl font-bold tnum">{n}</div>
+            </div>
           </button>
         ))}
       </div>
@@ -58,7 +61,7 @@ function DemoFeed() {
         >
           {events.length ? (
             <div className="max-h-[70vh] overflow-y-auto">
-              <FeedList events={events} onSelect={setSelected} />
+              <FeedList events={events} onSelect={setSelected} selectedId={selected?.id} />
             </div>
           ) : (
             <Empty title="Waiting for events…" />
