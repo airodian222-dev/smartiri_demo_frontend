@@ -1,21 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
-import { Activity, FileKey, Gauge, RadioTower, Settings, Trash2 } from "lucide-react";
+import { Gauge, RadioTower, Settings, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import * as api from "@/api/chirpstack";
-import type { Gateway, GatewayCertificate } from "@/api/types";
+import type { Gateway } from "@/api/types";
 import { ChartCard, MetricChart } from "@/components/charts";
 import { GatewayForm } from "@/components/GatewayForm";
 import { PointsMap } from "@/components/GatewayMap";
-import { LogStream } from "@/components/LogStream";
 import { SensorChip } from "@/components/sensors";
 import { TimeRangePicker, useWindow, type RangeKey } from "@/components/TimeRange";
-import { Card, ConfirmButton, CopyButton, ErrorBox, FormActions, KV, Loading, Spinner, StatusDot, Tabs } from "@/components/ui";
+import { Card, ConfirmButton, ErrorBox, FormActions, KV, Loading, Spinner, StatusDot, Tabs } from "@/components/ui";
 import { useTheme } from "@/context/theme";
 import { fmtDate, fmtFreq, timeAgo } from "@/lib/format";
 import { useAction } from "@/lib/hooks";
 
-type Tab = "dashboard" | "config" | "cert" | "frames";
+type Tab = "dashboard" | "config";
 
 export default function GatewayDetail() {
   const { id } = useParams();
@@ -27,14 +26,12 @@ export default function GatewayDetail() {
   const q = useQuery({ queryKey: ["gateway", id], queryFn: () => api.gateways.get(id!) });
   const metrics = useQuery({ queryKey: ["gateway", id, "metrics", w], queryFn: () => api.gateways.metrics(id!, w) });
   const [g, setG] = useState<Gateway | null>(null);
-  const [cert, setCert] = useState<GatewayCertificate | null>(null);
   useEffect(() => {
     if (q.data) setG({ statsInterval: 30, tags: {}, ...q.data.gateway });
   }, [q.data]);
 
   const save = useAction((x: Gateway) => api.gateways.update(x), { success: "Gateway updated", invalidate: [["gateway", id], ["gateways"]] });
   const del = useAction(() => api.gateways.delete(id!), { success: "Gateway deleted", invalidate: [["gateways"]], onSuccess: () => nav("/gateways") });
-  const gen = useAction(() => api.gateways.generateCertificate(id!), { success: "Certificate generated", onSuccess: setCert });
 
   if (q.isLoading || !g) return q.error ? <ErrorBox error={q.error} /> : <Loading />;
   const data = q.data!;
@@ -83,9 +80,7 @@ export default function GatewayDetail() {
         onChange={setTab}
         tabs={[
           { key: "dashboard", label: "Dashboard", icon: <Gauge className="h-4 w-4" /> },
-          { key: "config", label: "Configuration", icon: <Settings className="h-4 w-4" /> },
-          { key: "cert", label: "TLS certificate", icon: <FileKey className="h-4 w-4" /> },
-          { key: "frames", label: "LoRaWAN frames", icon: <Activity className="h-4 w-4" /> },
+          { key: "config", label: "Settings", icon: <Settings className="h-4 w-4" /> },
         ]}
       />
 
@@ -139,28 +134,6 @@ export default function GatewayDetail() {
         </form>
       )}
 
-      {tab === "cert" && (
-        <Card title="Gateway client certificate" subtitle="Used by the ChirpStack MQTT Forwarder / Gateway Bridge to authenticate with mutual TLS." className="max-w-3xl">
-          {!cert ? (
-            <div className="space-y-3">
-              <p className="text-sm text-ink2">Generating a certificate returns the CA certificate, client certificate and private key. The private key is only shown once.</p>
-              <button className="btn-primary" disabled={gen.isPending} onClick={() => gen.mutate(undefined)}>{gen.isPending && <Spinner />} Generate certificate</button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-sm">Expires: <b>{fmtDate(cert.expiresAt)}</b></p>
-              {([["CA certificate", cert.caCert], ["TLS certificate", cert.tlsCert], ["TLS key", cert.tlsKey]] as const).map(([l, v]) => (
-                <div key={l}>
-                  <div className="flex items-center justify-between"><span className="label">{l}</span><CopyButton text={v} /></div>
-                  <textarea readOnly className="input mono text-xs h-32" value={v} />
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      )}
-
-      {tab === "frames" && <LogStream kind="gatewayFrames" id={g.gatewayId} />}
     </div>
   );
 }

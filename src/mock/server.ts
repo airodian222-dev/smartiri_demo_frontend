@@ -7,7 +7,7 @@ import type * as T from "@/api/types";
 import { db, newId, persist, stamp, type DbDevice } from "./db";
 import { deviceLinkMetrics, deviceMetrics, gatewayMetrics } from "./metrics";
 import type { SensorKind } from "./sensors";
-import { notifyChange, scheduleClassCDownlink, gatewayState } from "./simulator";
+import { gatewayState, kickDevice, notifyChange } from "./simulator";
 
 type Q = Record<string, string | number | boolean | undefined | null>;
 type Handler = (p: Record<string, string>, q: Q, body: any) => unknown; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -84,7 +84,6 @@ route("DELETE", "/api/tenants/{id}", (p) => {
   db.gateways = db.gateways.filter((g) => g.tenantId !== p.id);
   db.deviceProfiles = db.deviceProfiles.filter((d) => d.tenantId !== p.id);
   db.tenantUsers = db.tenantUsers.filter((u) => u.tenantId !== p.id);
-  db.apiKeys = db.apiKeys.filter((k) => k.tenantId !== p.id);
   db.tenants = db.tenants.filter((x) => x.id !== p.id);
   return {};
 });
@@ -161,10 +160,6 @@ route("POST", "/api/users/{id}/password", (p, _, b) => {
 route("GET", "/api/gateways", (_, q) => {
   let list = db.gateways;
   if (q.tenantId) list = list.filter((g) => g.tenantId === q.tenantId);
-  if (q.multicastGroupId) {
-    const ids = db.mcGateways.filter((m) => m.multicastGroupId === q.multicastGroupId).map((m) => m.gatewayId);
-    list = list.filter((g) => ids.includes(g.gatewayId));
-  }
   return page(
     [...list].sort(byName).map((g) => ({
       tenantId: g.tenantId, gatewayId: g.gatewayId, name: g.name, description: g.description, location: g.location,
@@ -199,22 +194,6 @@ route("GET", "/api/gateways/{id}/metrics", (p, q) => {
   const devs = db.devices.filter((d) => db.applications.find((a) => a.id === d.applicationId)?.tenantId === g.tenantId && d.simulated).length;
   return gatewayMetrics(g, devs, q as any); // eslint-disable-line @typescript-eslint/no-explicit-any
 });
-route("POST", "/api/gateways/{id}/generate-certificate", (p) => {
-  must(db.gateways.find((x) => x.gatewayId === p.id), "gateway");
-  return fakeCert(`gateway ${p.id}`);
-});
-
-function fakeCert(cn: string) {
-  const b = (n: number) => Array.from({ length: n }, () => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[Math.floor(Math.random() * 64)]).join("");
-  const pem = (label: string, lines: number) => `-----BEGIN ${label}-----\n${Array.from({ length: lines }, () => b(64)).join("\n")}\n-----END ${label}-----\n`;
-  return {
-    tlsCert: `# Subject: CN=${cn} (demo certificate)\n` + pem("CERTIFICATE", 12),
-    tlsKey: pem("PRIVATE KEY", 4),
-    caCert: pem("CERTIFICATE", 10),
-    expiresAt: new Date(Date.now() + 365 * 86_400_000).toISOString(),
-  };
-}
-
 // ------------------------------------------------------------ Applications
 route("GET", "/api/applications", (_, q) => {
   if (!q.tenantId) throw invalid("tenant_id is required");
@@ -245,49 +224,10 @@ route("PUT", "/api/applications/{id}", (p, _, b) => {
 });
 route("DELETE", "/api/applications/{id}", (p) => {
   db.devices = db.devices.filter((d) => d.applicationId !== p.id);
-  db.multicastGroups = db.multicastGroups.filter((m) => m.applicationId !== p.id);
-  db.integrations = db.integrations.filter((i) => i.applicationId !== p.id);
   db.applications = db.applications.filter((a) => a.id !== p.id);
   return {};
 });
-const SLUG_KIND: Record<string, string> = {
-  http: "HTTP", influxdb: "INFLUX_DB", thingsboard: "THINGS_BOARD", mydevices: "MY_DEVICES", "gcp-pub-sub": "GCP_PUB_SUB",
-  "aws-sns": "AWS_SNS", "azure-service-bus": "AZURE_SERVICE_BUS", "pilot-things": "PILOT_THINGS", ifttt: "IFTTT", blynk: "BLYNK",
-};
-route("GET", "/api/applications/{id}/integrations", (p) => {
-  const result = db.integrations.filter((i) => i.applicationId === p.id).map((i) => ({ kind: SLUG_KIND[i.slug] }));
-  result.push({ kind: "MQTT_GLOBAL" });
-  return { totalCount: result.length, result };
-});
-route("POST", "/api/applications/{id}/integrations/mqtt/certificate", (p) => fakeCert(`application ${p.id}`));
-route("GET", "/api/applications/{id}/integrations/{slug}", (p) => {
-  const i = must(db.integrations.find((x) => x.applicationId === p.id && x.slug === p.slug), "integration");
-  return { integration: { applicationId: p.id, ...i.data } };
-});
-route("POST", "/api/applications/{id}/integrations/{slug}", (p, _, b) => {
-  if (db.integrations.some((x) => x.applicationId === p.id && x.slug === p.slug)) throw conflict("Object already exists (integration)");
-  db.integrations.push({ applicationId: p.id, slug: p.slug, data: strip(b.integration, "applicationId") });
-  return {};
-});
-route("PUT", "/api/applications/{id}/integrations/{slug}", (p, _, b) => {
-  const i = must(db.integrations.find((x) => x.applicationId === p.id && x.slug === p.slug), "integration");
-  i.data = strip(b.integration, "applicationId");
-  return {};
-});
-route("DELETE", "/api/applications/{id}/integrations/{slug}", (p) => {
-  db.integrations = db.integrations.filter((x) => !(x.applicationId === p.id && x.slug === p.slug));
-  return {};
-});
-
 // ------------------------------------------------------------ Device profiles
-route("GET", "/api/device-profiles/adr-algorithms", () => ({
-  totalCount: 3,
-  result: [
-    { id: "default", name: "Default ADR algorithm (LoRa only)" },
-    { id: "lr_fhss", name: "LR-FHSS only ADR algorithm" },
-    { id: "lora_lr_fhss", name: "LoRa & LR-FHSS ADR algorithm" },
-  ],
-}));
 route("GET", "/api/device-profiles", (_, q) => {
   if (!q.tenantId) throw invalid("tenant_id is required");
   return page(
@@ -319,50 +259,13 @@ route("DELETE", "/api/device-profiles/{id}", (p) => {
   return {};
 });
 
-// ------------------------------------------------------------ Device profile templates
-route("GET", "/api/device-profile-templates", (_, q) =>
-  page(
-    [...db.templates].sort((a, b) => (a.vendor + a.name).localeCompare(b.vendor + b.name)).map((d) => ({
-      id: d.id, createdAt: d.createdAt, updatedAt: d.updatedAt, name: d.name, vendor: d.vendor, firmware: d.firmware, region: d.region,
-      macVersion: d.macVersion, regParamsRevision: d.regParamsRevision, supportsOtaa: d.supportsOtaa, supportsClassB: d.supportsClassB, supportsClassC: d.supportsClassC,
-    })),
-    q,
-    (x) => x.vendor + " " + x.name,
-  ),
-);
-route("GET", "/api/device-profile-templates/{id}", (p) => {
-  const d = must(db.templates.find((x) => x.id === p.id), "device profile template");
-  return { deviceProfileTemplate: strip(d, "createdAt", "updatedAt"), createdAt: d.createdAt, updatedAt: d.updatedAt };
-});
-route("POST", "/api/device-profile-templates", (_, __, b) => {
-  const t = b.deviceProfileTemplate;
-  if (!t?.id) throw invalid("id is required");
-  if (db.templates.some((x) => x.id === t.id)) throw conflict("Object already exists (device profile template)");
-  db.templates.push({ ...t, ...stamp() });
-  return {};
-});
-route("PUT", "/api/device-profile-templates/{id}", (p, _, b) => {
-  const d = must(db.templates.find((x) => x.id === p.id), "device profile template");
-  Object.assign(d, { ...b.deviceProfileTemplate, id: p.id, updatedAt: now() });
-  return {};
-});
-route("DELETE", "/api/device-profile-templates/{id}", (p) => {
-  db.templates = db.templates.filter((x) => x.id !== p.id);
-  return {};
-});
-
 // ------------------------------------------------------------ Devices
 const devOrThrow = (eui: string) => must(db.devices.find((d) => d.devEui === eui), "device");
 const profileName = (id: string) => db.deviceProfiles.find((p) => p.id === id)?.name ?? "";
 
 route("GET", "/api/devices", (_, q) => {
-  if (!q.applicationId && !q.multicastGroupId) throw invalid("application_id is required");
-  let list = db.devices;
-  if (q.applicationId) list = list.filter((d) => d.applicationId === q.applicationId);
-  if (q.multicastGroupId) {
-    const euis = db.mcDevices.filter((m) => m.multicastGroupId === q.multicastGroupId).map((m) => m.devEui);
-    list = list.filter((d) => euis.includes(d.devEui));
-  }
+  if (!q.applicationId) throw invalid("application_id is required");
+  const list = db.devices.filter((d) => d.applicationId === q.applicationId);
   return page(
     [...list].sort(byName).map((d) => ({
       devEui: d.devEui, createdAt: d.createdAt, updatedAt: d.updatedAt, lastSeenAt: d.lastSeenAt, name: d.name, description: d.description,
@@ -406,8 +309,6 @@ route("DELETE", "/api/devices/{eui}", (p) => {
   db.devices = db.devices.filter((d) => d.devEui !== p.eui);
   delete db.deviceKeys[p.eui];
   delete db.activations[p.eui];
-  db.queue = db.queue.filter((q) => q.devEui !== p.eui);
-  db.mcDevices = db.mcDevices.filter((m) => m.devEui !== p.eui);
   return {};
 });
 route("GET", "/api/devices/{eui}/keys", (p) => {
@@ -419,6 +320,16 @@ const upsertKeys = (p: Record<string, string>, _q: Q, b: any) => { // eslint-dis
   devOrThrow(p.eui);
   const prev = db.deviceKeys[p.eui];
   db.deviceKeys[p.eui] = { ...b.deviceKeys, devEui: p.eui, createdAt: prev?.createdAt ?? now(), updatedAt: now() };
+  // Demo: a device with a join key "joins" the network and starts reporting.
+  const d = devOrThrow(p.eui);
+  if (!db.activations[p.eui]) {
+    const hex = (n: number) => Array.from({ length: n * 2 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
+    db.activations[p.eui] = { devEui: p.eui, devAddr: "26" + hex(3), appSKey: hex(16), nwkSEncKey: hex(16), sNwkSIntKey: hex(16), fNwkSIntKey: hex(16), fCntUp: 0, nFCntDown: 0, aFCntDown: 0 };
+  }
+  if (!d.isDisabled && !d.simulated) {
+    d.simulated = true;
+    kickDevice(d);
+  }
   return {};
 };
 route("POST", "/api/devices/{eui}/keys", upsertKeys);
@@ -427,114 +338,12 @@ route("DELETE", "/api/devices/{eui}/keys", (p) => {
   delete db.deviceKeys[p.eui];
   return {};
 });
-route("DELETE", "/api/devices/{eui}/dev-nonces", () => ({}));
-route("GET", "/api/devices/{eui}/activation", (p) => {
-  devOrThrow(p.eui);
-  const a = db.activations[p.eui];
-  return a ? { deviceActivation: a } : {};
-});
-route("POST", "/api/devices/{eui}/activate", (p, _, b) => {
-  const d = devOrThrow(p.eui);
-  db.activations[p.eui] = { ...b.deviceActivation, devEui: p.eui };
-  d.fCntUp = b.deviceActivation.fCntUp ?? 0;
-  if (!d.isDisabled) d.simulated = true;
-  return {};
-});
-route("DELETE", "/api/devices/{eui}/activation", (p) => {
-  const d = devOrThrow(p.eui);
-  delete db.activations[p.eui];
-  d.simulated = false;
-  return {};
-});
-route("POST", "/api/devices/{eui}/get-random-dev-addr", () => ({
-  devAddr: "26" + Array.from({ length: 6 }, () => Math.floor(Math.random() * 16).toString(16)).join(""),
-}));
 route("GET", "/api/devices/{eui}/metrics", (p, q) => deviceMetrics(devOrThrow(p.eui), q as any)); // eslint-disable-line @typescript-eslint/no-explicit-any
 route("GET", "/api/devices/{eui}/link-metrics", (p, q) => {
   const d = devOrThrow(p.eui);
   const dp = db.deviceProfiles.find((x) => x.id === d.deviceProfileId);
   return deviceLinkMetrics(d, dp?.uplinkInterval ?? 600, q as any); // eslint-disable-line @typescript-eslint/no-explicit-any
 });
-route("GET", "/api/devices/{eui}/queue", (p) => {
-  devOrThrow(p.eui);
-  const items = db.queue.filter((q) => q.devEui === p.eui).map((q) => strip(q, "createdAt"));
-  return { totalCount: items.length, result: items };
-});
-route("POST", "/api/devices/{eui}/queue", (p, _, b) => {
-  const d = devOrThrow(p.eui);
-  const qi = b.queueItem as T.DeviceQueueItem;
-  if (!qi.fPort || qi.fPort < 1 || qi.fPort > 223) throw invalid("FPort must be between 1 and 223");
-  let data = qi.data;
-  if (!data && qi.object) data = btoa(JSON.stringify(qi.object));
-  const item = { id: newId(), devEui: p.eui, confirmed: !!qi.confirmed, fPort: qi.fPort, data, object: qi.object, isPending: false, createdAt: now(), expiresAt: qi.expiresAt };
-  db.queue.push(item);
-  scheduleClassCDownlink(d);
-  return { id: item.id };
-});
-route("DELETE", "/api/devices/{eui}/queue", (p) => {
-  db.queue = db.queue.filter((q) => q.devEui !== p.eui);
-  return {};
-});
-route("POST", "/api/devices/{eui}/get-next-f-cnt-down", (p) => ({ fCntDown: db.activations[p.eui]?.aFCntDown ?? 0 }));
-
-// ------------------------------------------------------------ Multicast groups
-route("GET", "/api/multicast-groups", (_, q) =>
-  page(
-    db.multicastGroups.filter((m) => m.applicationId === q.applicationId).sort(byName).map((m) => ({ id: m.id, createdAt: m.createdAt, updatedAt: m.updatedAt, name: m.name, region: m.region, groupType: m.groupType })),
-    q,
-  ),
-);
-route("GET", "/api/multicast-groups/{id}", (p) => {
-  const m = must(db.multicastGroups.find((x) => x.id === p.id), "multicast group");
-  return { multicastGroup: strip(m, "createdAt", "updatedAt"), createdAt: m.createdAt, updatedAt: m.updatedAt };
-});
-route("POST", "/api/multicast-groups", (_, __, b) => {
-  const m = { ...b.multicastGroup, id: newId(), ...stamp() };
-  db.multicastGroups.push(m);
-  return { id: m.id };
-});
-route("PUT", "/api/multicast-groups/{id}", (p, _, b) => {
-  const m = must(db.multicastGroups.find((x) => x.id === p.id), "multicast group");
-  Object.assign(m, { ...b.multicastGroup, id: p.id, updatedAt: now() });
-  return {};
-});
-route("DELETE", "/api/multicast-groups/{id}", (p) => {
-  db.multicastGroups = db.multicastGroups.filter((x) => x.id !== p.id);
-  db.mcDevices = db.mcDevices.filter((x) => x.multicastGroupId !== p.id);
-  db.mcGateways = db.mcGateways.filter((x) => x.multicastGroupId !== p.id);
-  return {};
-});
-route("POST", "/api/multicast-groups/{id}/devices", (p, _, b) => {
-  devOrThrow(b.devEui);
-  if (!db.mcDevices.some((x) => x.multicastGroupId === p.id && x.devEui === b.devEui)) db.mcDevices.push({ multicastGroupId: p.id, devEui: b.devEui });
-  return {};
-});
-route("DELETE", "/api/multicast-groups/{id}/devices/{eui}", (p) => {
-  db.mcDevices = db.mcDevices.filter((x) => !(x.multicastGroupId === p.id && x.devEui === p.eui));
-  return {};
-});
-route("POST", "/api/multicast-groups/{id}/gateways", (p, _, b) => {
-  must(db.gateways.find((g) => g.gatewayId === b.gatewayId), "gateway");
-  if (!db.mcGateways.some((x) => x.multicastGroupId === p.id && x.gatewayId === b.gatewayId)) db.mcGateways.push({ multicastGroupId: p.id, gatewayId: b.gatewayId });
-  return {};
-});
-route("DELETE", "/api/multicast-groups/{id}/gateways/{gw}", (p) => {
-  db.mcGateways = db.mcGateways.filter((x) => !(x.multicastGroupId === p.id && x.gatewayId === p.gw));
-  return {};
-});
-route("GET", "/api/multicast-groups/{id}/queue", (p) => ({ items: db.mcQueue.filter((x) => x.multicastGroupId === p.id) }));
-route("POST", "/api/multicast-groups/{id}/queue", (p, _, b) => {
-  const m = must(db.multicastGroups.find((x) => x.id === p.id), "multicast group");
-  const fCnt = m.fCnt ?? 0;
-  m.fCnt = fCnt + 1;
-  db.mcQueue.push({ multicastGroupId: p.id, fCnt, fPort: b.queueItem.fPort, data: b.queueItem.data });
-  return { fCnt };
-});
-route("DELETE", "/api/multicast-groups/{id}/queue", (p) => {
-  db.mcQueue = db.mcQueue.filter((x) => x.multicastGroupId !== p.id);
-  return {};
-});
-
 // ------------------------------------------------------------ Dispatcher
 export async function handleMock<R>(method: string, path: string, query: Q, body: unknown): Promise<R> {
   await new Promise((r) => setTimeout(r, 60 + Math.random() * 120));

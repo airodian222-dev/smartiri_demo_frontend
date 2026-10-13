@@ -30,7 +30,7 @@ export default function Applications() {
       <PageHeader
         title="Applications"
         icon={<AppWindow className="h-5 w-5" />}
-        subtitle="Group devices with the same purpose, and forward their data to integrations"
+        subtitle="Group devices that serve the same purpose, e.g. a building or a use case"
         actions={<button className="btn-primary" onClick={() => { setApp({ name: "", description: "", tenantId: tenantId!, tags: {} }); setOpen(true); }}><Plus className="h-4 w-4" /> Add application</button>}
       />
       <DataTable

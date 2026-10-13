@@ -14,9 +14,7 @@ export type DbTenantUser = {
 } & Stamped;
 export type DbGateway = T.Gateway & Stamped & { lastSeenAt?: string; simulated: boolean };
 export type DbApplication = T.Application & { id: string } & Stamped;
-export type DbIntegration = { applicationId: string; slug: string; data: Record<string, unknown> };
 export type DbDeviceProfile = T.DeviceProfile & { id: string } & Stamped;
-export type DbTemplate = T.DeviceProfileTemplate & Stamped;
 export type DbDevice = T.Device &
   Stamped & {
     lastSeenAt?: string;
@@ -27,32 +25,22 @@ export type DbDevice = T.Device &
     fCntUp: number;
   };
 export type DbKeys = T.DeviceKeys & Stamped;
-export type DbQueueItem = T.DeviceQueueItem & { id: string; devEui: string; createdAt: string };
-export type DbMulticast = T.MulticastGroup & { id: string } & Stamped;
 
 export interface DB {
   version: number;
   tenants: DbTenant[];
   users: DbUser[];
   tenantUsers: DbTenantUser[];
-  apiKeys: (T.ApiKey & { createdAt: string })[];
   gateways: DbGateway[];
   applications: DbApplication[];
-  integrations: DbIntegration[];
   deviceProfiles: DbDeviceProfile[];
-  templates: DbTemplate[];
   devices: DbDevice[];
   deviceKeys: Record<string, DbKeys>;
   activations: Record<string, T.DeviceActivation>;
-  queue: DbQueueItem[];
-  multicastGroups: DbMulticast[];
-  mcDevices: { multicastGroupId: string; devEui: string }[];
-  mcGateways: { multicastGroupId: string; gatewayId: string }[];
-  mcQueue: T.MulticastGroupQueueItem[];
 }
 
-const STORAGE_KEY = "smartiri.mockdb.v1";
-const DB_VERSION = 1;
+const STORAGE_KEY = "smartiri.mockdb.v2";
+const DB_VERSION = 2;
 
 const now = () => new Date().toISOString();
 const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
@@ -273,46 +261,6 @@ function seed(): DB {
   addDevices(apps.city, profiles.air, "air", ["aq-orchard-rd", "aq-marina-bay", "aq-jurong-east", "aq-amk-ave3"], { never: [3] });
   addDevices(apps.farm, profiles.soil, "soil", ["soil-plot-a1", "soil-plot-a2", "soil-plot-b1", "soil-greenhouse"]);
 
-  const mc: DbMulticast = {
-    id: id(),
-    name: "All energy meters (firmware)",
-    applicationId: apps.energy.id,
-    region: "AS923",
-    mcAddr: "01ab3c4d",
-    mcNwkSKey: hex(rnd, 16),
-    mcAppSKey: hex(rnd, 16),
-    fCnt: 14,
-    groupType: "CLASS_C",
-    dr: 2,
-    frequency: 923200000,
-    classBPingSlotPeriodicity: 0,
-    classCSchedulingType: "DELAY",
-    createdAt: ago(20 * D),
-    updatedAt: ago(20 * D),
-  };
-
-  const templates: DbTemplate[] = [
-    tpl("dragino-lht65n-as923", "LHT65N Temperature & Humidity", "Dragino", "1.8", "env"),
-    tpl("milesight-em300-th", "EM300-TH Temp/Humidity", "Milesight", "1.2", "env"),
-    tpl("elsys-ers-co2", "ERS CO2", "Elsys", "1.4", "env"),
-    tpl("rak-rak7200", "RAK7200 WisNode Track", "RAKwireless", "2.0", "tracker"),
-    tpl("netvox-r718wa", "R718WA Water Leak", "Netvox", "1.0", "leak"),
-  ];
-  function tpl(tid: string, name: string, vendor: string, firmware: string, kind: SensorKind): DbTemplate {
-    return {
-      id: tid, name, vendor, firmware, description: SENSOR_MODELS[kind].label,
-      region: "AS923", macVersion: "LORAWAN_1_0_3", regParamsRevision: "A", adrAlgorithmId: "default",
-      payloadCodecRuntime: "JS", payloadCodecScript: CODEC_SCRIPT, flushQueueOnActivate: true,
-      uplinkInterval: 600, deviceStatusReqInterval: 1, supportsOtaa: true, supportsClassB: false, supportsClassC: false,
-      classBTimeout: 0, classBPingSlotPeriodicity: 0, classBPingSlotDr: 0, classBPingSlotFreq: 0, classCTimeout: 0,
-      abpRx1Delay: 0, abpRx1DrOffset: 0, abpRx2Dr: 0, abpRx2Freq: 0, tags: { vendor: vendor.toLowerCase() },
-      measurements: measurementsFor(kind), autoDetectMeasurements: true,
-      createdAt: ago(100 * D), updatedAt: ago(100 * D),
-    };
-  }
-
-  const meterEuis = devices.filter((d) => d.applicationId === apps.energy.id).slice(0, 4).map((d) => d.devEui);
-
   return {
     version: DB_VERSION,
     tenants: [t1, t2],
@@ -324,27 +272,12 @@ function seed(): DB {
       tu(t2.id, users[3].id, true, true, true),
       tu(t2.id, users[1].id, false, false, true),
     ],
-    apiKeys: [
-      { id: id(), name: "Grafana dashboards (read)", isAdmin: true, createdAt: ago(25 * D) },
-      { id: id(), name: "Node-RED flows", isAdmin: false, tenantId: t1.id, createdAt: ago(12 * D) },
-      { id: id(), name: "ERP integration", isAdmin: false, tenantId: t1.id, createdAt: ago(3 * D) },
-    ],
     gateways,
     applications: Object.values(apps),
-    integrations: [
-      { applicationId: apps.building.id, slug: "http", data: { headers: { "X-Api-Key": "bms-123" }, encoding: "JSON", eventEndpointUrl: "https://bms.smartiri.example/chirpstack" } },
-      { applicationId: apps.energy.id, slug: "influxdb", data: { version: "INFLUXDB_2", endpoint: "https://influx.smartiri.example/api/v2/write", organization: "smartiri", bucket: "energy", token: "••••••", precision: "S" } },
-    ],
     deviceProfiles: Object.values(profiles),
-    templates,
     devices,
     deviceKeys,
     activations,
-    queue: [],
-    multicastGroups: [mc],
-    mcDevices: meterEuis.map((devEui) => ({ multicastGroupId: mc.id, devEui })),
-    mcGateways: gateways.slice(0, 3).map((g) => ({ multicastGroupId: mc.id, gatewayId: g.gatewayId })),
-    mcQueue: [],
   };
 }
 

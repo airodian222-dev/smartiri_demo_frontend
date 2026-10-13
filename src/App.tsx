@@ -3,7 +3,6 @@ import { useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { useSession } from "./context/session";
-import ApiKeys from "./pages/ApiKeys";
 import ApplicationDetail from "./pages/ApplicationDetail";
 import Applications from "./pages/Applications";
 import Dashboard from "./pages/Dashboard";
@@ -11,16 +10,12 @@ import DeviceCreate from "./pages/DeviceCreate";
 import DeviceDetail from "./pages/DeviceDetail";
 import DeviceProfileDetail from "./pages/DeviceProfileDetail";
 import DeviceProfiles from "./pages/DeviceProfiles";
-import DeviceProfileTemplates, { DeviceProfileTemplateDetail } from "./pages/DeviceProfileTemplates";
 import Devices from "./pages/Devices";
 import GatewayDetail from "./pages/GatewayDetail";
 import Gateways, { GatewayCreate } from "./pages/Gateways";
 import LiveEvents from "./pages/LiveEvents";
 import Login from "./pages/Login";
 import MapView from "./pages/MapView";
-import MulticastGroupDetail, { MulticastGroupCreate } from "./pages/MulticastGroupDetail";
-import NetworkDashboard from "./pages/NetworkDashboard";
-import Regions, { RegionDetail } from "./pages/Regions";
 import Settings from "./pages/Settings";
 import TenantUsers from "./pages/TenantUsers";
 import Tenants, { TenantDetail } from "./pages/Tenants";
@@ -40,7 +35,7 @@ function DemoRefresher() {
         const now = Date.now();
         if (now - last < 5000) return;
         last = now;
-        qc.invalidateQueries({ predicate: (q) => ["summary", "devices", "gateways", "device", "gateway", "queue", "activation", "mc-queue"].includes(String(q.queryKey[0])) });
+        qc.invalidateQueries({ predicate: (q) => ["summary", "devices", "gateways", "device", "gateway", "queue"].includes(String(q.queryKey[0])) });
       });
     });
     return () => stop?.();
@@ -57,18 +52,11 @@ export default function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<Dashboard />} />
-          <Route path="network" element={<NetworkDashboard />} />
           <Route path="tenants" element={<Tenants />} />
           <Route path="tenants/:id" element={<TenantDetail />} />
           <Route path="users" element={<Users />} />
           <Route path="users/:id" element={<UserDetail />} />
-          <Route path="api-keys" element={<ApiKeys admin />} />
-          <Route path="tenant/api-keys" element={<ApiKeys />} />
           <Route path="tenant/users" element={<TenantUsers />} />
-          <Route path="regions" element={<Regions />} />
-          <Route path="regions/:id" element={<RegionDetail />} />
-          <Route path="device-profile-templates" element={<DeviceProfileTemplates />} />
-          <Route path="device-profile-templates/:id" element={<DeviceProfileTemplateDetail />} />
           <Route path="device-profiles" element={<DeviceProfiles />} />
           <Route path="device-profiles/:id" element={<DeviceProfileDetail />} />
           <Route path="gateways" element={<Gateways />} />
@@ -77,8 +65,6 @@ export default function App() {
           <Route path="applications" element={<Applications />} />
           <Route path="applications/:id" element={<ApplicationDetail />} />
           <Route path="applications/:appId/devices/new" element={<DeviceCreate />} />
-          <Route path="applications/:appId/multicast-groups/new" element={<MulticastGroupCreate />} />
-          <Route path="multicast-groups/:id" element={<MulticastGroupDetail />} />
           <Route path="devices" element={<Devices />} />
           <Route path="devices/:devEui" element={<DeviceDetail />} />
           <Route path="events" element={<LiveEvents />} />

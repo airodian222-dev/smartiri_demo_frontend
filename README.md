@@ -1,13 +1,13 @@
 # SmartIRI IoT Console
 
-A modern, dark-first IoT command center for **ChirpStack v4**. It has its own design rather than ChirpStack's UI: glass cards, gradient accents, a network-health hero, live sensor tiles with sparklines, and a device fleet card grid. It shows all device and network data, and it covers the ChirpStack web-UI features, from tenants down to individual LoRaWAN frames.
+A modern, dark-first IoT command center for **ChirpStack v4**. It has its own design rather than ChirpStack's UI: glass cards, gradient accents, a network-health hero, live sensor tiles with sparklines, and a device fleet card grid. It shows device and network data clearly and covers the core management tasks.
 
 It runs in two modes:
 
 | Mode | What it talks to | Use it for |
 |------|------------------|------------|
-| **Demo** | An in-browser ChirpStack simulator. It serves the same REST routes and JSON as `chirpstack-rest-api`, plus live uplinks, joins, downlinks and frames | Showing the product, UI work, offline demos |
-| **Live** | A real ChirpStack: REST via `chirpstack-rest-api`, and gRPC-web for the internal service (streams, API keys, regions, summaries) | Operating a real network |
+| **Demo** | An in-browser ChirpStack simulator. It serves the same REST routes and JSON as `chirpstack-rest-api`, plus live uplinks, joins and status reports | Showing the product, UI work, offline demos |
+| **Live** | A real ChirpStack: REST via `chirpstack-rest-api`, and gRPC-web for live device events and summaries | Operating a real network |
 
 ## Quick start
 
@@ -20,34 +20,32 @@ npm run dev        # http://localhost:5173 → click "Launch demo"
 
 ## Features
 
-**Dashboards**
-- Tenant dashboard: device and gateway status, uplink totals, network traffic (RX/TX), data-rate usage, a gateway map with live tracker positions, a live event feed, and a "needs attention" list (silent devices, low battery, weak link margin).
-- Network-server overview across all tenants.
-- Live events page with filters by event type and application, plus a JSON inspector.
-- Network map.
+The console focuses on clear visualization plus the core management tasks. Advanced ChirpStack features (API keys, regions, device catalog, multicast, integrations, downlink queue, raw frames) are deliberately left out.
 
-**Devices** (mirrors ChirpStack's device pages)
-- List devices across all applications, with status, battery, link margin and last-seen filters.
-- Dashboard: latest decoded uplink, receiving gateways (RSSI/SNR), measurement charts from the device profile, and link metrics (received, RSSI, SNR, per frequency, per DR, errors). Time ranges are 1 h, 24 h, 31 d and 1 y.
-- Configuration: profile, JoinEUI, disable the device, skip the frame-counter check, tags and variables.
-- OTAA keys: LoRaWAN 1.0.x and 1.1, generate, MSB/LSB order, flush dev-nonces.
-- Activation: view the OTAA session; activate or deactivate ABP with a random DevAddr.
-- Downlink queue: enqueue HEX, Base64 or JSON (via the codec), confirmed or unconfirmed, and flush.
-- Live **Events** (up/join/status/ack/txack/log) and **LoRaWAN frames** streams, with pause and JSON download.
+**Monitor**
+- **Overview:**
+  - a network-health score with device, gateway and link-quality rings
+  - a live event-rate strip
+  - KPI cards with trend lines (uplinks, downlinks, active devices, battery)
+  - a fleet-wide sensor snapshot (temperature, humidity, CO₂, power, air quality and more, each with a 24 h trend)
+  - a traffic chart and a top-gateways ranking
+  - a coverage map, a live activity timeline, a per-application breakdown, a data-rate mix and a "needs attention" list
+- **Live stream:** every uplink, join, status report and alert as it happens, with decoded values and a JSON inspector.
+- **Map:** gateways by status, with live tracker positions.
 
-**Gateways**
-- List and map, RX/TX metrics (per frequency, DR and TX status), configuration with location and tags, TLS client certificates, and live frames.
+**Fleet**
+- **Devices:** card grid or table with status filters. Each device page has a dashboard (latest readings, measurement and signal charts), live data, and settings (profile, enabled, tags, OTAA join key).
+- **Gateways:** status tiles, list or map, a dashboard with RX/TX charts, and settings (name, location, tags).
+- **Applications:** device stats and device cards, plus settings.
+- **Device profiles:** cards showing capabilities and usage. The editor has three tabs: General (region, LoRaWAN version, OTAA, Class B/C), Payload decoder and Measurements.
 
-**Applications**
-- Devices, configuration, multicast groups (devices, gateways, queue), and integrations: HTTP, InfluxDB, ThingsBoard, myDevices, GCP Pub/Sub, AWS SNS, Azure Service Bus, Pilot Things, IFTTT, Blynk, plus MQTT client certificates.
+**Organization**
+- **Team:** members of the current workspace and their permissions.
+- **Workspaces:** cards per workspace with device and gateway health. Create, edit and switch between them.
+- **Users:** accounts, roles and passwords.
 
-**Device profiles and templates**
-- General, Join (OTAA/ABP), Class-B, Class-C, codec (JS / Cayenne LPP), measurements and tags. A new profile can be created from a device-profile template.
-
-**Administration**
-- Tenants, users (including passwords), tenant users and permissions, admin and tenant API keys, and regions.
-- Global search across devices, gateways, applications and tenants.
-- Light and dark themes, responsive down to phone width.
+**Other**
+- Global search (⌘K), dark, light or system theme, and a responsive layout down to phone width.
 
 ## Connecting to a real ChirpStack
 
@@ -58,7 +56,7 @@ The console needs two endpoints:
    docker run -p 8090:8090 chirpstack/chirpstack-rest-api:4 \
      --server chirpstack:8080 --bind 0.0.0.0:8090 --insecure --cors '*'
    ```
-2. **ChirpStack itself** (gRPC-web, default port `8080`), for the calls the REST proxy does not expose: live event and frame streams, API keys, regions, device/gateway summaries, login and search. ChirpStack serves gRPC-web natively, which is how its own UI works.
+2. **ChirpStack itself** (gRPC-web, default port `8080`), for the calls the REST proxy does not expose: live device events, device/gateway summaries, login and search. ChirpStack serves gRPC-web natively, which is how its own UI works.
 
 On the login screen, choose **Connect** and enter:
 - **REST API URL**, e.g. `http://localhost:8090`

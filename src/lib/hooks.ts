@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import * as api from "@/api/chirpstack";
-import { stream, type StreamKind } from "@/api/internal";
+import { streamDeviceEvents } from "@/api/internal";
 import type { DeviceListItem, FeedEvent, LogItem } from "@/api/types";
 import { useToast } from "@/context/toast";
 import { isDemo } from "./config";
@@ -41,22 +41,21 @@ export function useAction<V, R = unknown>(fn: (v: V) => Promise<R>, opts: { succ
   });
 }
 
-/** Subscribe to a ChirpStack LogItem stream (device events / frames, gateway frames). */
-export function useLogStream(kind: StreamKind, id: string | undefined, max = 200) {
+/** Subscribe to a device's live event stream. */
+export function useDeviceEvents(id: string | undefined, max = 200) {
   const [items, setItems] = useState<LogItem[]>([]);
   const [error, setError] = useState<Error | null>(null);
   const [paused, setPaused] = useState(false);
   useEffect(() => {
     if (!id || paused) return;
     setError(null);
-    const unsub = stream(
-      kind,
+    const unsub = streamDeviceEvents(
       id,
       (item) => setItems((prev) => (prev.some((p) => p.id === item.id) ? prev : [item, ...prev].slice(0, max))),
       (e) => setError(e),
     );
     return unsub;
-  }, [kind, id, paused, max]);
+  }, [id, paused, max]);
   return { items, error, paused, setPaused, clear: () => setItems([]) };
 }
 

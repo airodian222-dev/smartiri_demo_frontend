@@ -57,7 +57,7 @@ export default function Login() {
               See every sensor,<br />
               <span className="gradient-text">every signal, live.</span>
             </h1>
-            <p className="mt-4 text-slate-300 max-w-lg">A real-time command center for your LoRaWAN network: live sensor data, gateway coverage, device health, downlinks and every network setting, all in one place.</p>
+            <p className="mt-4 text-slate-300 max-w-lg">A real-time command center for your LoRaWAN network: live sensor data, gateway coverage, device health and fleet management in one place.</p>
           </div>
           <div className="grid grid-cols-3 gap-3 max-w-lg">
             {[

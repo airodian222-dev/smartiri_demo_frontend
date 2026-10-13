@@ -1,42 +1,83 @@
-import { useQuery } from "@tanstack/react-query";
-import { Building2, Plus, Trash2 } from "lucide-react";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import { ArrowRight, Building2, Cpu, Pencil, Plus, RadioTower, Trash2, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import * as api from "@/api/chirpstack";
 import type { Tenant } from "@/api/types";
-import { DataTable } from "@/components/DataTable";
-import { Badge, Card, ConfirmButton, ErrorBox, Field, FormActions, KeyValueEditor, Loading, PageHeader, Spinner, Toggle } from "@/components/ui";
+import { devicesSummary, gatewaysSummary } from "@/api/internal";
+import { Ring } from "@/components/charts";
+import { useTheme } from "@/context/theme";
+import { Card, ConfirmButton, ErrorBox, Field, FormActions, Loading, PageHeader, Spinner, Toggle } from "@/components/ui";
 import { useSession } from "@/context/session";
 import { fmtDate } from "@/lib/format";
 import { useAction } from "@/lib/hooks";
 
 export default function Tenants() {
   const q = useQuery({ queryKey: ["tenants", "list"], queryFn: () => api.tenants.list({ limit: 500 }) });
+  const list = q.data?.result ?? [];
+  const devs = useQueries({ queries: list.map((t) => ({ queryKey: ["summary", "devices", t.id], queryFn: () => devicesSummary(t.id), retry: false })) });
+  const gws = useQueries({ queries: list.map((t) => ({ queryKey: ["summary", "gateways", t.id], queryFn: () => gatewaysSummary(t.id), retry: false })) });
+  const users = useQueries({ queries: list.map((t) => ({ queryKey: ["tenant-users", t.id], queryFn: () => api.tenants.listUsers(t.id, { limit: 1 }) })) });
+  const { colors } = useTheme();
+  const { setTenantId } = useSession();
+  const nav = useNavigate();
+  const grads = ["from-cyan-400 to-indigo-500", "from-pink-500 to-violet-500", "from-amber-400 to-rose-500", "from-emerald-400 to-teal-600"];
   return (
     <div>
       <PageHeader
-        title="Tenants"
+        title="Workspaces"
         icon={<Building2 className="h-5 w-5" />}
-        subtitle="Organisations sharing this network server"
-        actions={<Link to="/tenants/new" className="btn-primary"><Plus className="h-4 w-4" /> Add tenant</Link>}
+        subtitle="Separate organisations or sites, each with their own devices, gateways and team"
+        actions={<Link to="/tenants/new" className="btn-primary"><Plus className="h-4 w-4" /> New workspace</Link>}
       />
-      <DataTable
-        rows={q.data?.result}
-        loading={q.isLoading}
-        error={q.error}
-        rowKey={(t) => t.id}
-        rowLink={(t) => `/tenants/${t.id}`}
-        searchable
-        searchText={(t) => t.name}
-        columns={[
-          { key: "name", header: "Name", render: (t) => <span className="font-medium">{t.name}</span>, sort: (t) => t.name },
-          { key: "gw", header: "Can have gateways", render: (t) => (t.canHaveGateways ? <Badge tone="good">Yes</Badge> : <Badge>No</Badge>) },
-          { key: "pgu", header: "Private gateways", render: (t) => [t.privateGatewaysUp && "uplink", t.privateGatewaysDown && "downlink"].filter(Boolean).join(" + ") || "—" },
-          { key: "maxgw", header: "Max gateways", render: (t) => t.maxGatewayCount || "∞" },
-          { key: "maxdev", header: "Max devices", render: (t) => t.maxDeviceCount || "∞" },
-          { key: "created", header: "Created", render: (t) => <span className="text-muted">{fmtDate(t.createdAt)}</span>, sort: (t) => t.createdAt ?? "" },
-        ]}
-      />
+      {q.isLoading ? <Loading /> : q.error ? <ErrorBox error={q.error} /> : (
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
+          {list.map((t, i) => {
+            const d = devs[i]?.data;
+            const g = gws[i]?.data;
+            const total = d ? d.activeCount + d.inactiveCount + d.neverSeenCount : 0;
+            const gTotal = g ? g.onlineCount + g.offlineCount + g.neverSeenCount : 0;
+            const initials = t.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+            return (
+              <div key={t.id} className="card card-hover p-5 relative overflow-hidden animate-rise">
+                <div className={`absolute -right-14 -top-14 h-40 w-40 rounded-full bg-gradient-to-br ${grads[i % grads.length]} opacity-[0.16] blur-2xl`} />
+                <div className="flex items-start gap-3 relative">
+                  <div className={`h-12 w-12 rounded-2xl bg-gradient-to-br ${grads[i % grads.length]} grid place-items-center text-white font-bold shadow-lg`}>{initials}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-lg leading-tight truncate">{t.name}</div>
+                    <div className="text-xs text-muted mt-0.5">Created {fmtDate(t.createdAt)}</div>
+                  </div>
+                  <Link to={`/tenants/${t.id}`} className="btn-ghost btn-sm" title="Edit workspace"><Pencil className="h-3.5 w-3.5" /></Link>
+                </div>
+                <div className="grid grid-cols-2 gap-4 mt-5 relative">
+                  <div className="flex items-center gap-3">
+                    <Ring value={total ? (d?.activeCount ?? 0) / total : 0} size={54} stroke={6} from={colors.good} to={colors.brand2} track={colors.line}>
+                      <Cpu className="h-4 w-4 text-ink2" />
+                    </Ring>
+                    <div>
+                      <div className="text-xl font-bold tnum">{d ? total : "—"}</div>
+                      <div className="text-xs text-muted">devices · {d?.activeCount ?? 0} active</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Ring value={gTotal ? (g?.onlineCount ?? 0) / gTotal : 0} size={54} stroke={6} from={colors.brand} to={colors.brand2} track={colors.line}>
+                      <RadioTower className="h-4 w-4 text-ink2" />
+                    </Ring>
+                    <div>
+                      <div className="text-xl font-bold tnum">{g ? gTotal : "—"}</div>
+                      <div className="text-xs text-muted">gateways · {g?.onlineCount ?? 0} online</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between mt-5 pt-4 border-t border-line/70 relative">
+                  <span className="text-xs text-muted flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /> {users[i]?.data?.totalCount ?? "…"} team members</span>
+                  <button className="btn-primary btn-sm" onClick={() => { setTenantId(t.id); nav("/"); }}>Open <ArrowRight className="h-3.5 w-3.5" /></button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -55,11 +96,11 @@ export function TenantDetail() {
   }, [q.data]);
 
   const save = useAction((x: Tenant) => (isNew ? api.tenants.create(x) : api.tenants.update(x).then(() => ({ id: x.id! }))), {
-    success: isNew ? "Tenant created" : "Tenant updated",
+    success: isNew ? "Workspace created" : "Workspace updated",
     invalidate: [["tenants"], ["tenant", id]],
     onSuccess: (r) => isNew && nav(`/tenants/${(r as { id: string }).id}`),
   });
-  const del = useAction(() => api.tenants.delete(id!), { success: "Tenant deleted", invalidate: [["tenants"]], onSuccess: () => nav("/tenants") });
+  const del = useAction(() => api.tenants.delete(id!), { success: "Workspace deleted", invalidate: [["tenants"]], onSuccess: () => nav("/tenants") });
 
   if (!isNew && q.isLoading) return <Loading />;
   if (q.error) return <ErrorBox error={q.error} />;
@@ -67,14 +108,14 @@ export function TenantDetail() {
   return (
     <div className="max-w-3xl">
       <PageHeader
-        title={isNew ? "Add tenant" : t.name}
-        breadcrumbs={[{ label: "Tenants", to: "/tenants" }, { label: isNew ? "New" : t.name }]}
+        title={isNew ? "New workspace" : t.name}
+        breadcrumbs={[{ label: "Workspaces", to: "/tenants" }, { label: isNew ? "New" : t.name }]}
         subtitle={!isNew && <span className="mono text-xs">{id}</span>}
         actions={
           !isNew && (
             <>
-              <button className="btn-secondary" onClick={() => { setTenantId(id!); nav("/"); }}>Open tenant dashboard</button>
-              <ConfirmButton className="btn-secondary text-bad" onConfirm={() => del.mutateAsync(undefined)} title="Delete tenant?" message="All applications, devices, gateways and device profiles of this tenant are deleted.">
+              <button className="btn-secondary" onClick={() => { setTenantId(id!); nav("/"); }}>Open workspace</button>
+              <ConfirmButton className="btn-secondary text-bad" onConfirm={() => del.mutateAsync(undefined)} title="Delete workspace?" message="All applications, devices, gateways and device profiles in this workspace are deleted.">
                 <Trash2 className="h-4 w-4" /> Delete
               </ConfirmButton>
             </>
@@ -95,14 +136,11 @@ export function TenantDetail() {
               <Field label="Max. gateway count" help="0 = unlimited"><input type="number" min={0} className="input" value={t.maxGatewayCount ?? 0} onChange={(e) => setT({ ...t, maxGatewayCount: +e.target.value })} /></Field>
               <Field label="Max. device count" help="0 = unlimited"><input type="number" min={0} className="input" value={t.maxDeviceCount ?? 0} onChange={(e) => setT({ ...t, maxDeviceCount: +e.target.value })} /></Field>
             </div>
-            <Toggle checked={!!t.canHaveGateways} onChange={(v) => setT({ ...t, canHaveGateways: v })} label="Tenant can have gateways" help="When enabled, tenant (gateway) admins can add gateways." />
-            <Toggle checked={!!t.privateGatewaysUp} onChange={(v) => setT({ ...t, privateGatewaysUp: v })} label="Gateways are private (uplink)" help="Uplinks received by gateways of this tenant can only be used by devices of this tenant." />
-            <Toggle checked={!!t.privateGatewaysDown} onChange={(v) => setT({ ...t, privateGatewaysDown: v })} label="Gateways are private (downlink)" help="Other tenants cannot use these gateways for downlinks." />
-            <Field label="Tags"><KeyValueEditor value={t.tags ?? {}} onChange={(tags) => setT({ ...t, tags })} /></Field>
+            <Toggle checked={!!t.canHaveGateways} onChange={(v) => setT({ ...t, canHaveGateways: v })} label="Workspace can have gateways" help="Allow this workspace to register its own gateways." />
           </div>
           <FormActions>
             {!isNew && <span className="text-xs text-muted mr-auto self-center">Updated {fmtDate(q.data?.updatedAt)}</span>}
-            <button className="btn-primary" disabled={save.isPending}>{save.isPending && <Spinner />} {isNew ? "Create tenant" : "Save changes"}</button>
+            <button className="btn-primary" disabled={save.isPending}>{save.isPending && <Spinner />} {isNew ? "Create workspace" : "Save changes"}</button>
           </FormActions>
         </Card>
       </form>

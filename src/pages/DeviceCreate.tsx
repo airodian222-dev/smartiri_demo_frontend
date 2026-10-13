@@ -16,7 +16,7 @@ export default function DeviceCreate() {
   const profiles = useQuery({ queryKey: ["device-profiles", tenantId], queryFn: () => api.deviceProfiles.list(tenantId!, { limit: 500 }), enabled: !!tenantId });
   const [d, setD] = useState<Device>({ devEui: "", name: "", description: "", applicationId: appId!, deviceProfileId: "", joinEui: "", tags: {}, variables: {}, isDisabled: false, skipFcntCheck: false });
   const save = useAction((x: Device) => api.devices.create(x), {
-    success: "Device created — set its OTAA keys or ABP activation next",
+    success: "Device created. Set its join key under Settings.",
     invalidate: [["devices"]],
     onSuccess: (_, x) => nav(`/devices/${x.devEui}`),
   });

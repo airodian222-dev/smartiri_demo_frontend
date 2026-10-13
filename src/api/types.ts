@@ -89,14 +89,6 @@ export interface UserListItem {
   isActive?: boolean;
 }
 
-// ---------- API keys (internal service)
-export interface ApiKey {
-  id: string;
-  name: string;
-  isAdmin?: boolean;
-  tenantId?: string;
-}
-
 // ---------- Gateways
 export type GatewayState = "NEVER_SEEN" | "ONLINE" | "OFFLINE";
 export interface Gateway {
@@ -135,12 +127,6 @@ export interface GatewayMetrics {
   txPacketsPerDr?: Metric;
   rxPacketsPerDr?: Metric;
   txPacketsPerStatus?: Metric;
-}
-export interface GatewayCertificate {
-  tlsCert: string;
-  tlsKey: string;
-  caCert: string;
-  expiresAt?: string;
 }
 
 // ---------- Applications
@@ -221,30 +207,6 @@ export interface GetDeviceProfileResponse {
   createdAt?: string;
   updatedAt?: string;
 }
-export interface AdrAlgorithm {
-  id: string;
-  name: string;
-}
-
-export interface DeviceProfileTemplate extends Omit<DeviceProfile, "tenantId" | "id"> {
-  id: string;
-  vendor: string;
-  firmware: string;
-}
-export interface DeviceProfileTemplateListItem {
-  id: string;
-  createdAt?: string;
-  updatedAt?: string;
-  name: string;
-  vendor?: string;
-  firmware?: string;
-  region?: string;
-  macVersion?: string;
-  regParamsRevision?: string;
-  supportsOtaa?: boolean;
-  supportsClassB?: boolean;
-  supportsClassC?: boolean;
-}
 
 // ---------- Devices
 export interface DeviceStatus {
@@ -301,18 +263,6 @@ export interface DeviceActivation {
   nFCntDown?: number;
   aFCntDown?: number;
 }
-export interface DeviceQueueItem {
-  id?: string;
-  devEui?: string;
-  confirmed?: boolean;
-  fPort: number;
-  data?: string; // base64
-  object?: Record<string, unknown>;
-  isPending?: boolean;
-  fCntDown?: number;
-  isEncrypted?: boolean;
-  expiresAt?: string;
-}
 export interface DeviceState {
   name: string;
   value: string;
@@ -330,42 +280,6 @@ export interface DeviceLinkMetrics {
   errors?: Metric;
 }
 
-// ---------- Multicast groups
-export interface MulticastGroup {
-  id?: string;
-  name: string;
-  applicationId: string;
-  region: string;
-  mcAddr: string;
-  mcNwkSKey: string;
-  mcAppSKey: string;
-  fCnt?: number;
-  groupType: "CLASS_B" | "CLASS_C";
-  dr?: number;
-  frequency?: number;
-  classBPingSlotPeriodicity?: number;
-  classCSchedulingType?: "DELAY" | "GPS_TIME";
-}
-export interface MulticastGroupListItem {
-  id: string;
-  createdAt?: string;
-  updatedAt?: string;
-  name: string;
-  region?: string;
-  groupType?: string;
-}
-export interface MulticastGroupQueueItem {
-  multicastGroupId: string;
-  fCnt?: number;
-  fPort: number;
-  data?: string;
-}
-
-// ---------- Integrations
-export interface IntegrationListItem {
-  kind: string;
-}
-
 // ---------- Internal
 export interface DevicesSummary {
   activeCount: number;
@@ -377,24 +291,6 @@ export interface GatewaysSummary {
   onlineCount: number;
   offlineCount: number;
   neverSeenCount: number;
-}
-export interface RegionListItem {
-  id: string;
-  region: string;
-  description?: string;
-}
-export interface RegionDetail {
-  id: string;
-  region: string;
-  userInfo?: string;
-  description?: string;
-  uplinkChannels: { frequency: number; dataRates: number[] }[];
-  rx1Delay: number;
-  rx1DrOffset: number;
-  rx2Dr: number;
-  rx2Frequency: number;
-  classBPingSlotDr: number;
-  classBPingSlotFrequency: number;
 }
 export interface LogItem {
   id: string;

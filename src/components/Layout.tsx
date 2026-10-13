@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import clsx from "clsx";
 import {
-  Activity, AppWindow, Boxes, Building2, ChevronsUpDown, Cpu, FileCog, Gauge, Globe, KeyRound, LayoutDashboard, LogOut, Map, Menu, Monitor,
+  Activity, AppWindow, Building2, ChevronsUpDown, Cpu, FileCog, LayoutDashboard, LogOut, Map, Menu, Monitor,
   Moon, RadioTower, Search, Server, Settings, ShieldCheck, Sun, Users, X, Zap,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -211,22 +211,13 @@ export function Layout() {
           <NavItem to="/devices" icon={<Cpu />}>Devices</NavItem>
           <NavItem to="/gateways" icon={<RadioTower />}>Gateways</NavItem>
           <NavItem to="/applications" icon={<AppWindow />}>Applications</NavItem>
-        </Section>
-        <Section title="Configure">
           <NavItem to="/device-profiles" icon={<FileCog />}>Device profiles</NavItem>
-          <NavItem to="/tenant/users" icon={<Users />}>Team</NavItem>
-          <NavItem to="/tenant/api-keys" icon={<KeyRound />}>Access tokens</NavItem>
         </Section>
-        {isAdmin && (
-          <Section title="Platform">
-            <NavItem to="/network" icon={<Gauge />}>Network overview</NavItem>
-            <NavItem to="/tenants" icon={<Building2 />}>Workspaces</NavItem>
-            <NavItem to="/users" icon={<ShieldCheck />}>Users</NavItem>
-            <NavItem to="/api-keys" icon={<KeyRound />}>Admin tokens</NavItem>
-            <NavItem to="/device-profile-templates" icon={<Boxes />}>Device catalog</NavItem>
-            <NavItem to="/regions" icon={<Globe />}>Regions</NavItem>
-          </Section>
-        )}
+        <Section title="Organization">
+          <NavItem to="/tenant/users" icon={<Users />}>Team</NavItem>
+          {isAdmin && <NavItem to="/tenants" icon={<Building2 />}>Workspaces</NavItem>}
+          {isAdmin && <NavItem to="/users" icon={<ShieldCheck />}>Users</NavItem>}
+        </Section>
       </div>
       <div className="p-3">
         <Link to="/settings" className="block rounded-2xl p-3 ring-1 ring-white/10 bg-gradient-to-br from-indigo-500/15 to-cyan-500/5 hover:from-indigo-500/25 transition">

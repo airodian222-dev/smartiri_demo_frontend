@@ -79,15 +79,13 @@ function DeviceStreamPicker() {
   const { tenantId } = useSession();
   const devs = useTenantDevices(tenantId);
   const [eui, setEui] = useState("");
-  const [kind, setKind] = useState<"deviceEvents" | "deviceFrames">("deviceEvents");
   return (
     <div>
-      <PageHeader title="Live events" icon={<Activity className="h-5 w-5" />} subtitle="ChirpStack streams events per device (gRPC-web). Choose a device to follow." />
+      <PageHeader title="Live events" icon={<Activity className="h-5 w-5" />} subtitle="Choose a device to follow its data live." />
       <div className="flex flex-wrap gap-2 mb-4">
         <Select className="w-auto min-w-[280px]" value={eui} onChange={setEui} options={[{ value: "", label: "Select a device…" }, ...(devs.data ?? []).map((d) => ({ value: d.devEui, label: `${d.name} — ${d.applicationName}` }))]} />
-        <Select className="w-auto" value={kind} onChange={(k) => setKind(k as typeof kind)} options={[{ value: "deviceEvents", label: "Events" }, { value: "deviceFrames", label: "LoRaWAN frames" }]} />
       </div>
-      {eui ? <LogStream key={eui + kind} kind={kind} id={eui} /> : <Card><Empty title="No device selected" /></Card>}
+      {eui ? <LogStream key={eui} id={eui} /> : <Card><Empty title="No device selected" /></Card>}
     </div>
   );
 }
